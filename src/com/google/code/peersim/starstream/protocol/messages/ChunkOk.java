@@ -1,10 +1,13 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
-import com.google.code.peersim.starstream.protocol.Chunk.ChunkId;
+import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage.Type;
 
 /**
+ * This message is used to report the successful reception of a chunk, in response
+ * to a {@link ChunkMessage}.
+ *
  * @author frusso
  * @version 0.1
  * @since 0.1
@@ -12,12 +15,14 @@ import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage.Ty
 public class ChunkOk extends ChunkAdvertisement {
 
   /**
-   * 
-   * @param src
-   * @param dst
-   * @param chunkId
+   * Constructor. When creating a new instance, the specified source is also used to
+   * initialize the message originator.
+   *
+   * @param src The sender
+   * @param dst The destination
+   * @param chunkId The identifier of the chunk whose reception has to be acknowledged
    */
-  ChunkOk(StarStreamNode src, StarStreamNode dst, ChunkId chunkId) {
+  ChunkOk(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
     super(src, dst, chunkId);
   }
 
