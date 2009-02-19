@@ -10,7 +10,9 @@ import java.io.FileNotFoundException;
 
 /**
  * This class represents a node that leverages both the *-Stream and the Pastry
- * protocols to take part to a P2P streaming event.
+ * protocols to take part to a P2P streaming event.<br>
+ * Extending {@link PastryNode} this class can take advantage of all the features
+ * and control classes available for {@link PastryNode}.
  *
  * @author frusso
  * @version 0.1
@@ -26,5 +28,13 @@ public class StarStreamNode extends PastryNode {
    */
   public StarStreamNode(String prefix) throws FileNotFoundException {
     super(prefix);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Object clone() {
+    return super.clone();
   }
 }
