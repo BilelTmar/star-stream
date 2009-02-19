@@ -9,40 +9,36 @@ import com.google.code.peersim.starstream.protocol.*;
 import com.google.code.peersim.starstream.protocol.Chunk.*;
 
 /**
+ * This message is used to disseminate a new chunk into the network.
  *
  * @author frusso
  * @version 0.1
  * @since 0.1
  */
-public class ChunkMessage<T> extends StarStreamMessage {
+public class ChunkMessage extends StarStreamMessage {
 
   /**
-   * 
+   * The chunk that has to be disseminated.
    */
   private Chunk chunk;
 
   /**
+   * Constructor. When creating a new instance, the specified source is also used to
+   * initialize the message originator.
    *
-   * @param orig
-   * @param dst
-   * @param chunk
+   * @param src The sender
+   * @param dst The destination
+   * @param chunk The chunk
    */
   public ChunkMessage(StarStreamNode src, StarStreamNode dst, Chunk chunk) {
     super(src, dst);
+    if(chunk==null) throw new IllegalArgumentException("The chunk cannot be 'null'");
     this.chunk = chunk;
   }
 
   /**
-   *
-   * @return
-   */
-  public ChunkAdvertisement createChunkAdv() {
-    return new ChunkAdvertisement(getDestination(), getSource(), chunk.getId());
-  }
-
-  /**
-   *
-   * @return
+   * Returns a reference to the chunk.
+   * @return The chunk
    */
   public Chunk getChunk() {
     return chunk;
@@ -57,18 +53,33 @@ public class ChunkMessage<T> extends StarStreamMessage {
   }
 
   /**
+   * Creates a {@link ChunkKo} message required to signal the sending node
+   * that the chunk was either currupted or the message did not arrived at all
+   * i.e. due to timeout expiration.
    *
-   * @return
+   * @return The {@link ChunkKo} message
    */
-  public ChunkOk replyOk() {
-    return new ChunkOk(getDestination(), getSource(), chunk.getId());
+  public ChunkKo replyKo() {
+    return new ChunkKo(getDestination(), getSource(), chunk.getResourceId());
   }
 
   /**
+   * Creates a {@link ChunkOk} message required to signal the sending node
+   * that the chunk has been properly received.
    *
-   * @return
+   * @return The {@link ChunkOk} message
    */
-  public ChunkKo replyKo() {
-    return new ChunkKo(getDestination(), getSource(), chunk.getId());
+  public ChunkOk replyOk() {
+    return new ChunkOk(getDestination(), getSource(), chunk.getResourceId());
+  }
+
+  /**
+   * Creates a {@link ChunkAdvertisement} message that must be used by nodes
+   * that receive new chunks to advertise their presence to their neighbors.
+   *
+   * @return The {@link ChunkAdvertisement} message
+   */
+  public ChunkAdvertisement replyWithChunkAdv() {
+    return new ChunkAdvertisement(getDestination(), getSource(), chunk.getResourceId());
   }
 }
