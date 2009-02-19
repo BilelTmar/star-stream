@@ -24,6 +24,22 @@
                 <clean-target>clean</clean-target>
                 <id>jar</id>
             </reference>
+            <reference>
+                <foreign-project>Peersim</foreign-project>
+                <artifact-type>folder</artifact-type>
+                <script>build.xml</script>
+                <target>compile</target>
+                <clean-target>clean</clean-target>
+                <id>compile</id>
+            </reference>
+            <reference>
+                <foreign-project>Peersim</foreign-project>
+                <artifact-type>jar</artifact-type>
+                <script>build.xml</script>
+                <target>compile</target>
+                <clean-target>clean</clean-target>
+                <id>compile2</id>
+            </reference>
         </references>
     </configuration>
 </project>
