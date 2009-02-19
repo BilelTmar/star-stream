@@ -5,11 +5,13 @@
 
 package com.google.code.peersim.starstream.protocol.messages;
 
-import com.google.code.peersim.starstream.protocol.Chunk.ChunkId;
+import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 
 /**
- *
+ * This message is used to express the interest in receiving a chunk that has
+ * been advertised by means of a {@link ChunkAdvertisement} message.
+ * 
  * @author frusso
  * @version 0.1
  * @since 0.1
@@ -17,21 +19,15 @@ import com.google.code.peersim.starstream.protocol.StarStreamNode;
 public class ChunkRequest extends ChunkAdvertisement {
 
   /**
-   * 
-   * @param src
-   * @param dst
-   * @param chunkId
-   */
-  ChunkRequest(StarStreamNode src, StarStreamNode dst, ChunkId chunkId) {
-    super(src, dst, chunkId);
-  }
-
-  /**
+   * Constructor. When creating a new instance, the specified source is also used to
+   * initialize the message originator.
    *
-   * @return
+   * @param src The sender
+   * @param dst The destination
+   * @param chunkId The identifier of the chunk we are interested in
    */
-  public ChunkMissing createChunMissing() {
-    return new ChunkMissing(getDestination(), getSource(), getChunkId());
+  ChunkRequest(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
+    super(src, dst, chunkId);
   }
 
   /**
@@ -40,5 +36,16 @@ public class ChunkRequest extends ChunkAdvertisement {
   @Override
   public Type getType() {
     return StarStreamMessage.Type.CHUNK_REQ;
+  }
+
+  /**
+   * If a node that receives a {@link ChunkRequest} is not able to provide the
+   * inquiring node with the requested chunk, this method must be used to create
+   * a {@link ChunkMissing} message.
+   *
+   * @return The {@link ChunkMissing} message
+   */
+  public ChunkMissing replyWithChunkMissing() {
+    return new ChunkMissing(getDestination(), getSource(), getChunkId());
   }
 }
