@@ -124,6 +124,10 @@ public abstract class StarStreamMessage {
    */
   private StarStreamNode destination;
   /**
+   * The number of hops the message has travelled.
+   */
+  private int hops;
+  /**
    * Unique message identifier.
    */
   private UUID id;
@@ -143,10 +147,13 @@ public abstract class StarStreamMessage {
    * @param dst The destination
    */
   protected StarStreamMessage(StarStreamNode src, StarStreamNode dst) {
+    if(src==null) throw new IllegalArgumentException("The source cannot be 'null'");
+    if(dst==null) throw new IllegalArgumentException("The destination cannot be 'null'");
     this.source = src;
     this.originator = src;
     this.destination = dst;
     id = UUID.randomUUID();
+    hops = 0;
   }
 
   /**
@@ -197,6 +204,14 @@ public abstract class StarStreamMessage {
   }
 
   /**
+   * Returns the number of hops the message has travelled so far.
+   * @return The number of hops
+   */
+  public int getHops() {
+    return hops;
+  }
+
+  /**
    * The unique immutable identifier associated with the message.
    * @return The message identifier
    */
@@ -221,6 +236,21 @@ public abstract class StarStreamMessage {
   }
 
   /**
+   * Increase the current number of hops adding 1.
+   */
+  protected void increaseHops() {
+    hops++;
+  }
+
+  /**
+   * Sets the destination of the message
+   * @param destination The destination to set
+   */
+  protected void setDestination(StarStreamNode destination) {
+    this.destination = destination;
+  }
+
+  /**
    * Sets the originator of the message.
    * @param originator The originator to set
    */
@@ -234,13 +264,5 @@ public abstract class StarStreamMessage {
    */
   protected void setSource(StarStreamNode source) {
     this.source = source;
-  }
-
-  /**
-   * Sets the destination of the message
-   * @param destination The destination to set
-   */
-  protected void setDestination(StarStreamNode destination) {
-    this.destination = destination;
   }
 }
