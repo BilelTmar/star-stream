@@ -5,6 +5,11 @@
 
 package com.google.code.peersim.starstream.protocol;
 
+import com.google.code.peersim.pastry.protocol.PastryJoinLsnrIfc.JoinedInfo;
+import com.google.code.peersim.pastry.protocol.PastryProtocol;
+import com.google.code.peersim.pastry.protocol.PastryProtocolListenerIfc;
+import com.google.code.peersim.pastry.protocol.PastryResourceAssignLsnrIfc.ResourceAssignedInfo;
+import com.google.code.peersim.pastry.protocol.PastryResourceDiscoveryLsnrIfc.ResourceDiscoveredInfo;
 import com.google.code.peersim.starstream.protocol.messages.ChunkAdvertisement;
 import com.google.code.peersim.starstream.protocol.messages.ChunkKo;
 import com.google.code.peersim.starstream.protocol.messages.ChunkMessage;
@@ -16,10 +21,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import peersim.config.Configuration;
-import peersim.config.FastConfig;
 import peersim.core.Node;
 import peersim.edsim.EDProtocol;
-import peersim.transport.Transport;
 import peersim.util.FileNameGenerator;
 
 /**
@@ -28,33 +31,93 @@ import peersim.util.FileNameGenerator;
  * @version 0.1
  * @since 0.1
  */
-public class StarStreamProtocol implements EDProtocol {
-
-  public static final String MSG_TIMEOUT = "timeOut";
-  public static int msgTimeout;
-  public static final String STAR_STORE_SIZE = "starStoreSize";
-  public static int starStoreSize;
-  public static final String REL_TRANSPORT = "reliableTransport";
-  public static int reliableTransportPid;
-  public static final String UNREL_TRANSPORT = "unreliableTransport";
-  public static int unreliableTransportPid;
-  public static final String PASTRY_TRANSPORT = "pastryTransport";
-  public static int pastryTransportPid;
-  public static final String LOG_FILE = "log";
-  public static String logFile;
-  public static final String DO_LOG = "doLog";
-  public static boolean doLog;
-
-  private static final String SEPARATOR = ".";
-
-  private String prefix;
-
-  private StarStreamNode thisNode;
-  private PrintStream stream;
+public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc {
 
   /**
+   * Configurable timeout for *-Stream messages.
+   */
+  public static final String MSG_TIMEOUT = "timeOut";
+  /**
+   * Timeout value for *-Stream messages.
+   */
+  private static int msgTimeout;
+  /**
+   * Configurable size for the *-Stream Store.
+   */
+  public static final String STAR_STORE_SIZE = "starStoreSize";
+  /**
+   * Size for the *-Stream Store.
+   */
+  private static int starStoreSize;
+  /**
+   * Reliable transport protocol for *-Stream.
+   */
+  public static final String REL_TRANSPORT = "reliableTransport";
+  /**
+   * The protocol id assigned by the PeerSim runtime to the reliable transport instance.
+   */
+  private static int reliableTransportPid;
+  /**
+   * Unreliable transport protocol for *-Stream.
+   */
+  public static final String UNREL_TRANSPORT = "unreliableTransport";
+  /**
+   * The protocol id assigned by the PeerSim runtime to the unreliable transport instance.
+   */
+  private static int unreliableTransportPid;
+  /**
+   * Pastry protocol for *-Stream.
+   */
+  public static final String PASTRY_TRANSPORT = "pastryTransport";
+  /**
+   * The protocol id assigned by the PeerSim runtime to the Pastry protocol instance.
+   */
+  private static int pastryTransportPid;
+  /**
+   * Configurable file name for logging purposes.
+   */
+  public static final String LOG_FILE = "log";
+  /**
+   * Name of the configured log file (if any).
+   */
+  private static String logFile;
+  /**
+   * Property for configuring whether the protocol should log its activity or not.
+   */
+  public static final String DO_LOG = "doLog";
+  /**
+   * Whether the protocol should log its activity or not.
+   */
+  private static boolean doLog;
+  /**
+   * PeerSim property separator char.
+   */
+  private static final String SEPARATOR = ".";
+  /**
+   * Configuration prefix.
+   */
+  private static String prefix;
+
+  /**
+   * This reference to the node associated with the current protocol instance
+   * is set-up whenevere a new event has to be processed and set back to {@code null}
+   * upon event-handling completion.
+   */
+  private StarStreamNode thisNode;
+  /**
+   * The stream to log to.
+   */
+  private PrintStream stream;
+  /**
+   * The reference to the underlying {@link PastryProtocol} instance.
+   */
+  private PastryProtocol pastryProtocol;
+
+  /**
+   * Constructor. Sets up only those configuration parameters that can be set
+   * by means of the PeerSim configuration file.
    *
-   * @param prefix
+   * @param prefix The configuration prefix
    */
   public StarStreamProtocol(String prefix) throws FileNotFoundException {
     this.prefix = prefix;
@@ -76,10 +139,52 @@ public class StarStreamProtocol implements EDProtocol {
   public final Object clone() {
     try {
       Object clone = super.clone();
+      ((StarStreamProtocol)clone).thisNode = null;
+      ((StarStreamProtocol)clone).pastryProtocol = null;
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Cloning failed. See nested exceptions, please.", e);
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void joined(JoinedInfo info) {
+    log("Received pastry-event "+info);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceAssigned(ResourceAssignedInfo info) {
+    log("Received pastry-event "+info);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceReceived(ResourceReceivedInfo info) {
+    log("Received pastry-event "+info);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceRouted(ResourceRoutedInfo info) {
+    log("Received pastry-event "+info);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceDiscovered(ResourceDiscoveredInfo info) {
+    log("Received pastry-event "+info);
   }
 
   /**
@@ -133,6 +238,18 @@ public class StarStreamProtocol implements EDProtocol {
   }
 
   /**
+   * This method has to be invoked only once by the {@link StarStreamNode} instance that owns this
+   * {@link StarStreamProtocol} instance to let the latter register itself as a listener for
+   * Pastry protocol-events.
+   *
+   * @param pastry The {@link PastryProtocol} to register on for event notifications
+   */
+  void registerPastryListeners(PastryProtocol pastry) {
+    pastryProtocol = pastry;
+    pastryProtocol.registerListener(this);
+  }
+
+  /**
    *
    * @param chunkMessage
    */
@@ -181,8 +298,10 @@ public class StarStreamProtocol implements EDProtocol {
   }
 
   /**
-   * 
+   * Logs the given message appending a new-line to the input parameter.
+   * @param msg The log message
    */
-  private void registerPastryListeners() {
+  private void log(String msg) {
+    stream.print("["+pastryProtocol.getPastryId()+"] "+msg+"\n");
   }
 }

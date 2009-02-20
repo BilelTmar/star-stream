@@ -41,6 +41,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk message";
       }
@@ -54,6 +55,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk OK message";
       }
@@ -67,6 +69,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk KO message";
       }
@@ -81,6 +84,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk advertisement message";
       }
@@ -94,6 +98,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk request message";
       }
@@ -107,6 +112,7 @@ public abstract class StarStreamMessage {
       /**
        * {@inheritDoc}
        */
+      @Override
       public String toString() {
         return "Chunk missing message";
       }
