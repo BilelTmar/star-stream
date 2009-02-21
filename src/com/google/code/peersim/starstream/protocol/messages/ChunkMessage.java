@@ -7,6 +7,9 @@ package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.starstream.protocol.*;
 import com.google.code.peersim.starstream.protocol.Chunk.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * This message is used to disseminate a new chunk into the network.
@@ -77,9 +80,27 @@ public class ChunkMessage extends StarStreamMessage {
    * Creates a {@link ChunkAdvertisement} message that must be used by nodes
    * that receive new chunks to advertise their presence to their neighbors.
    *
+   * @param dst The destination
    * @return The {@link ChunkAdvertisement} message
    */
-  public ChunkAdvertisement replyWithChunkAdv() {
-    return new ChunkAdvertisement(getDestination(), getSource(), chunk.getResourceId());
+  public ChunkAdvertisement createChunkAdv(StarStreamNode dst) {
+    return new ChunkAdvertisement(getDestination(), dst, chunk.getResourceId());
+  }
+
+  /**
+   * Creates a list of {@link ChunkAdvertisement} messages that must be used by nodes
+   * that receive new chunks to advertise their presence to their neighbors.<br>
+   * <b>NOTE:</b> the advertisement are ordered according to the ordering of the
+   * provided destinations.
+   *
+   * @param dst The destinations
+   * @return The {@link ChunkAdvertisement} message
+   */
+  public List<ChunkAdvertisement> createChunkAdvs(Set<StarStreamNode> dsts) {
+    List<ChunkAdvertisement> advs = new ArrayList<ChunkAdvertisement>();
+    for(StarStreamNode dst : dsts) {
+      advs.add( new ChunkAdvertisement(getDestination(), dst, chunk.getResourceId()) );
+    }
+    return advs;
   }
 }
