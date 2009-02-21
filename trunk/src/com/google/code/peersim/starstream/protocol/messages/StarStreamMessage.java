@@ -42,6 +42,13 @@ public abstract class StarStreamMessage {
        * {@inheritDoc}
        */
       @Override
+      public int getEstimatedBandwidth() {
+        throw new UnsupportedOperationException();
+      }
+      /**
+       * {@inheritDoc}
+       */
+      @Override
       public String toString() {
         return "Chunk message";
       }
@@ -56,6 +63,16 @@ public abstract class StarStreamMessage {
        * {@inheritDoc}
        */
       @Override
+      public int getEstimatedBandwidth() {
+        // since a chunk_ok typically brings only a pastry-identifier
+        // (which is a 128 bit long string), this message will presumably consume
+        // something link 248 bits
+        return 248;
+      }
+      /**
+       * {@inheritDoc}
+       */
+      @Override
       public String toString() {
         return "Chunk OK message";
       }
@@ -66,6 +83,16 @@ public abstract class StarStreamMessage {
      * the other node the chunk has not been properly received.
      */
     CHUNK_KO {
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getEstimatedBandwidth() {
+        // since a chunk_ko typically brings only a pastry-identifier
+        // (which is a 128 bit long string), this message will presumably consume
+        // something link 248 bits
+        return 248;
+      }
       /**
        * {@inheritDoc}
        */
@@ -85,6 +112,16 @@ public abstract class StarStreamMessage {
        * {@inheritDoc}
        */
       @Override
+      public int getEstimatedBandwidth() {
+        // since a chunk advertisement typically brings only a pastry-identifier
+        // (which is a 128 bit long string), this message will presumably consume
+        // something link 248 bits
+        return 248;
+      }
+      /**
+       * {@inheritDoc}
+       */
+      @Override
       public String toString() {
         return "Chunk advertisement message";
       }
@@ -95,6 +132,16 @@ public abstract class StarStreamMessage {
      * a reply means that we are interested in receiving the advertised chunk.
      */
     CHUNK_REQ {
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getEstimatedBandwidth() {
+        // since a chunk_req typically brings only a pastry-identifier
+        // (which is a 128 bit long string), this message will presumably consume
+        // something link 248 bits
+        return 248;
+      }
       /**
        * {@inheritDoc}
        */
@@ -113,10 +160,28 @@ public abstract class StarStreamMessage {
        * {@inheritDoc}
        */
       @Override
+      public int getEstimatedBandwidth() {
+        // since a chunk_missing typically brings only a pastry-identifier
+        // (which is a 128 bit long string), this message will presumably consume
+        // something link 248 bits
+        return 248;
+      }
+      /**
+       * {@inheritDoc}
+       */
+      @Override
       public String toString() {
         return "Chunk missing message";
       }
     };
+
+    /**
+     * Returns the estimated number of kbits required by the given network
+     * operation.
+     *
+     * @return The estimated number of kbits
+     */
+    public abstract int getEstimatedBandwidth();
 
     /**
      * Returns a human-readable description of the message type.
@@ -207,6 +272,10 @@ public abstract class StarStreamMessage {
    */
   public StarStreamNode getDestination() {
     return destination;
+  }
+
+  public int getEstimantedBandwidth() {
+    return getType().getEstimatedBandwidth();
   }
 
   /**

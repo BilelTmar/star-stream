@@ -5,6 +5,7 @@
 
 package com.google.code.peersim.starstream.protocol;
 
+import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.pastry.protocol.PastryJoinLsnrIfc.JoinedInfo;
 import com.google.code.peersim.pastry.protocol.PastryProtocol;
 import com.google.code.peersim.pastry.protocol.PastryProtocolListenerIfc;
@@ -20,10 +21,16 @@ import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import peersim.config.Configuration;
+import peersim.config.FastConfig;
 import peersim.core.CommonState;
 import peersim.core.Node;
 import peersim.edsim.EDProtocol;
+import peersim.transport.Transport;
 import peersim.util.FileNameGenerator;
 
 /**
@@ -50,6 +57,32 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * Size for the *-Stream Store.
    */
   private static int starStoreSize;
+  /**
+   * Whether messages should be corruptable or not.
+   */
+  public static final String CURRUPTED_MESSAGES = "curruptedMessages";
+  /**
+   * Whether messages should be corruptable or not.
+   */
+  private static boolean curruptedMessages;
+  /**
+   * Whether messages should be corruptable or not. Legal values are in [0..1].
+   */
+  public static final String CURRUPTED_MESSAGES_PROB = "curruptedMessagesProbability";
+  /**
+   * Whether messages should be corruptable or not.
+   */
+  private static float curruptedMessagesProbability;
+  /**
+   * How many simulation-time units a chunk can persist in the *-Stream Store before
+   * it is removed to make room for other chunks.
+   */
+  public static final String CHUNK_EXPIRATION = "chunkExpiration";
+  /**
+   * How many simulation-time units a chunk can persist in the *-Stream Store before
+   * it is removed to make room for other chunks.
+   */
+  private static int chunkExpiration;
   /**
    * Reliable transport protocol for *-Stream.
    */
@@ -113,6 +146,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * The reference to the underlying {@link PastryProtocol} instance.
    */
   private PastryProtocol pastryProtocol;
+  /**
+   * This is the *-Stream local-store for storing chunks.
+   */
+  private StarStreamStore store;
+
+  
+  private static int outDeg;
+  private static int inDeg;
 
   /**
    * Constructor. Sets up only those configuration parameters that can be set
@@ -121,7 +162,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param prefix The configuration prefix
    */
   public StarStreamProtocol(String prefix) throws FileNotFoundException {
-    this.prefix = prefix;
+    StarStreamProtocol.prefix = prefix;
     msgTimeout = Configuration.getInt(prefix+SEPARATOR+MSG_TIMEOUT);
     starStoreSize = Configuration.getInt(prefix+SEPARATOR+STAR_STORE_SIZE);
     reliableTransportPid = Configuration.getPid(prefix+SEPARATOR+REL_TRANSPORT);
@@ -131,6 +172,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     if(doLog) {
       stream = new PrintStream(new FileOutputStream(new FileNameGenerator(Configuration.getString(prefix + ".log"), ".log").nextCounterName()));
     }
+    curruptedMessages = Configuration.getBoolean(prefix+SEPARATOR+CURRUPTED_MESSAGES);
+    if(curruptedMessages) {
+      curruptedMessagesProbability = (float)Configuration.getDouble(prefix+SEPARATOR+CURRUPTED_MESSAGES_PROB);
+    }
+    chunkExpiration = Configuration.getInt(prefix+SEPARATOR+CHUNK_EXPIRATION);
+    outDeg = Configuration.getInt(prefix+SEPARATOR+"outDeg");
+    inDeg = Configuration.getInt(prefix+SEPARATOR+"inDeg");
   }
 
   /**
@@ -251,11 +299,91 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * Advertises the existence of a new chunk to a selection of neighbors.
+   * The number of neighbors is based on how many ougoing connections this
+   * node is able to create.
    *
-   * @param chunkMessage
+   * @param msg The message containing the chunk that has to be advertised
+   */
+  private void advertiseChunk(ChunkMessage msg) {
+    Set<StarStreamNode> neighbors = selectOutNeighbors();
+    List<ChunkAdvertisement> advs = msg.createChunkAdvs(neighbors);
+    broadcastOverReliableTransport(advs);
+  }
+
+  /**
+   * Tells how many output connections can be established before
+   * exhausting the output bandwidth.
+   *
+   * @return The number of connections
+   */
+  private int availableOutDeg() {
+    return outDeg;
+  }
+
+  /**
+   * Sends each message stored in the provided input over the configured reliable
+   * transport.
+   * 
+   * @param msgs The messages
+   */
+  private void broadcastOverReliableTransport(List<? extends StarStreamMessage> msgs) {
+    for(StarStreamMessage msg : msgs) {
+      sendOverReliableTransport(msg);
+    }
+  }
+
+  /**
+   * Tells whether the message can be consumed or not. This is state basing on
+   * the {@link StarStreamProtocol#curruptedMessagesProbability} configured value.
+   *
+   * @param chunkMsg
+   * @return Whether the message can be consumed or not
+   */
+  private boolean checkMessageIntegrity(ChunkMessage chunkMsg) {
+    boolean res;
+    if(StarStreamProtocol.curruptedMessages) {
+      res = CommonState.r.nextFloat() < StarStreamProtocol.curruptedMessagesProbability;
+    } else {
+      res = true;
+    }
+    return res;
+  }
+
+  /**
+   * When a new chunk is received, the receiving protocol instance has to do two
+   * things "concurrently":
+   * <ol>
+   * <li>immediately reply the sending node with either a {@link ChunkOk} or
+   * {@link ChunkKo} message (the integrity of the message can be verified by means
+   * of the {@link StarStreamProtocol#checkMessageIntegrity(ChunkMessage)};<br><br>
+   * <b>NOTE:</b> in case of corrupted message, we must abort the processing<br><br>
+   * ask itself if it already owns the chunk; should it not be the case, store the 
+   * chunk locally. In either case, it must now adverties the received chunk to
+   * a set of <i>outDeg</i> neighbors. <i>outDeg</i> means the number of outgoing
+   * connections the node can currently establish. How many outgoing connections
+   * can be used at the moment is defined by the 
+   * {@link StarStreamProtocol#availableOutDeg(com.google.code.peersim.starstream.protocol.StarStreamProtocol.NetworkOperation)}
+   * method</li>
+   * <li>iff the sender is the <i>source-node</i>, route the chunk over the Pastry network</li>
+   * </ol>
+   *
+   * @param chunkMessage The message
    */
   private void handleChunk(ChunkMessage chunkMessage) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log(thisNode+" received "+chunkMessage);
+    if(checkMessageIntegrity(chunkMessage)) {
+      // send OK and proceede
+      handleChunk_SendOK(chunkMessage);
+      storeIfNotStored(chunkMessage.getChunk());
+      // advertise the new chunk
+      advertiseChunk(chunkMessage);
+      // route the resource over the Pastry network
+      thisNode.publishResource(chunkMessage.getChunk());
+    } else {
+      // send KO and abort
+      handleChunk_SendKO(chunkMessage);
+    }
   }
 
   /**
@@ -299,10 +427,65 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * Reply to the node that just sent the input {@link ChunkMessage} with a
+   * {@link ChunkKo} message stating that the chunk has not been properly received.
+   * This message is sent over a reliable transport.
+   *
+   * @param chunkMessage The message to reply to
+   */
+  private void handleChunk_SendKO(ChunkMessage chunkMessage) {
+    ChunkKo ko = chunkMessage.replyKo();
+    sendOverReliableTransport(ko);
+  }
+
+  /**
+   * Reply to the node that just sent the input {@link ChunkMessage} with a
+   * {@link ChunkOk} message stating that the chunk has been properly received.
+   * This message is sent over a reliable transport.
+   *
+   * @param chunkMessage The message to reply to
+   */
+  private void handleChunk_SendOK(ChunkMessage chunkMessage) {
+    ChunkOk ok = chunkMessage.replyOk();
+    sendOverReliableTransport(ok);
+  }
+
+  /**
    * Logs the given message appending a new-line to the input parameter.
    * @param msg The log message
    */
   private void log(String msg) {
     stream.print(CommonState.getTime()+") ["+pastryProtocol.getPastryId()+"] "+msg+"\n");
+  }
+
+  /**
+   * Randomly selects neighbors according to Pastry's <i>neighbor</i> definition.
+   * @return Zero or more Pastry neighbors
+   */
+  private Set<StarStreamNode> selectOutNeighbors() {
+    return thisNode.getPastryProtocol().getNeighbors(availableOutDeg());
+  }
+
+  /**
+   * Send the input {@link StarStreamMessage} over the configured reliable transport.
+   *
+   * @param msg The message
+   */
+  private void sendOverReliableTransport(StarStreamMessage msg) {
+    Transport t = (Transport) thisNode.getProtocol(FastConfig.getTransport(StarStreamProtocol.reliableTransportPid));
+    t.send(msg.getSource(), msg.getDestination(), msg, StarStreamProtocol.reliableTransportPid);
+    log("[SND] "+msg);
+  }
+
+  /**
+   * Adds the given chunk to the local *-Stream Store iff that chunk is not yet
+   * in the store.
+   * 
+   * @param chunk The chunk
+   */
+  private void storeIfNotStored(Chunk<?> chunk) {
+    if(store==null)
+      store = new StarStreamStore();
+    store.addChunk(chunk);
   }
 }
