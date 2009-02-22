@@ -40,43 +40,6 @@ public class ChunkMessage extends StarStreamMessage {
   }
 
   /**
-   * Returns a reference to the chunk.
-   * @return The chunk
-   */
-  public Chunk getChunk() {
-    return chunk;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public Type getType() {
-    return StarStreamMessage.Type.CHUNK;
-  }
-
-  /**
-   * Creates a {@link ChunkKo} message required to signal the sending node
-   * that the chunk was either currupted or the message did not arrived at all
-   * i.e. due to timeout expiration.
-   *
-   * @return The {@link ChunkKo} message
-   */
-  public ChunkKo replyKo() {
-    return new ChunkKo(getDestination(), getSource(), chunk.getResourceId());
-  }
-
-  /**
-   * Creates a {@link ChunkOk} message required to signal the sending node
-   * that the chunk has been properly received.
-   *
-   * @return The {@link ChunkOk} message
-   */
-  public ChunkOk replyOk() {
-    return new ChunkOk(getDestination(), getSource(), chunk.getResourceId());
-  }
-
-  /**
    * Creates a {@link ChunkAdvertisement} message that must be used by nodes
    * that receive new chunks to advertise their presence to their neighbors.
    *
@@ -102,5 +65,56 @@ public class ChunkMessage extends StarStreamMessage {
       advs.add( new ChunkAdvertisement(getDestination(), dst, chunk.getResourceId()) );
     }
     return advs;
+  }
+
+  /**
+   * Returns a reference to the chunk.
+   * @return The chunk
+   */
+  public Chunk getChunk() {
+    return chunk;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Type getType() {
+    return StarStreamMessage.Type.CHUNK;
+  }
+
+  /**
+   * Tells whether the message has been sent by the source of the streaming.
+   *
+   * @return Whether the message has been sent by the source of the streaming
+   */
+  public boolean isFromSigma() {
+    return getSource()==null;
+  }
+
+  /**
+   * Creates a {@link ChunkKo} message required to signal the sending node
+   * that the chunk was either currupted or the message did not arrived at all
+   * i.e. due to timeout expiration.
+   *
+   * @return The {@link ChunkKo} message
+   */
+  public ChunkKo replyKo() {
+    return new ChunkKo(getDestination(), getSource(), chunk.getResourceId());
+  }
+
+  /**
+   * Creates a {@link ChunkOk} message required to signal the sending node
+   * that the chunk has been properly received.
+   *
+   * @return The {@link ChunkOk} message
+   */
+  public ChunkOk replyOk() {
+    return new ChunkOk(getDestination(), getSource(), chunk.getResourceId());
+  }
+
+  @Override
+  public String toString() {
+    return super.toString()+" "+getChunk();
   }
 }

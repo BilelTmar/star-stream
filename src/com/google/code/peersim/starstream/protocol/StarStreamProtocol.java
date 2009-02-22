@@ -5,12 +5,12 @@
 
 package com.google.code.peersim.starstream.protocol;
 
-import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.pastry.protocol.PastryJoinLsnrIfc.JoinedInfo;
 import com.google.code.peersim.pastry.protocol.PastryProtocol;
 import com.google.code.peersim.pastry.protocol.PastryProtocolListenerIfc;
 import com.google.code.peersim.pastry.protocol.PastryResourceAssignLsnrIfc.ResourceAssignedInfo;
 import com.google.code.peersim.pastry.protocol.PastryResourceDiscoveryLsnrIfc.ResourceDiscoveredInfo;
+import com.google.code.peersim.starstream.controls.StarStreamSource;
 import com.google.code.peersim.starstream.protocol.messages.ChunkAdvertisement;
 import com.google.code.peersim.starstream.protocol.messages.ChunkKo;
 import com.google.code.peersim.starstream.protocol.messages.ChunkMessage;
@@ -21,9 +21,7 @@ import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import peersim.config.Configuration;
 import peersim.config.FastConfig;
@@ -34,6 +32,7 @@ import peersim.transport.Transport;
 import peersim.util.FileNameGenerator;
 
 /**
+ * Implementation of the *-Stream Protocol.
  *
  * @author frusso
  * @version 0.1
@@ -91,14 +90,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * The protocol id assigned by the PeerSim runtime to the reliable transport instance.
    */
   private static int reliableTransportPid;
-  /**
-   * Unreliable transport protocol for *-Stream.
-   */
-  public static final String UNREL_TRANSPORT = "unreliableTransport";
-  /**
-   * The protocol id assigned by the PeerSim runtime to the unreliable transport instance.
-   */
-  private static int unreliableTransportPid;
   /**
    * Pastry protocol for *-Stream.
    */
@@ -166,7 +157,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     msgTimeout = Configuration.getInt(prefix+SEPARATOR+MSG_TIMEOUT);
     starStoreSize = Configuration.getInt(prefix+SEPARATOR+STAR_STORE_SIZE);
     reliableTransportPid = Configuration.getPid(prefix+SEPARATOR+REL_TRANSPORT);
-    unreliableTransportPid = Configuration.getPid(prefix+SEPARATOR+UNREL_TRANSPORT);
     pastryTransportPid = Configuration.getPid(prefix+SEPARATOR+PASTRY_TRANSPORT);
     doLog = Configuration.getBoolean(prefix+SEPARATOR+DO_LOG);
     if(doLog) {
@@ -209,23 +199,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void resourceAssigned(ResourceAssignedInfo info) {
-    log("Received pastry-event "+info);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void resourceReceived(ResourceReceivedInfo info) {
-    log("Received pastry-event "+info);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void resourceRouted(ResourceRoutedInfo info) {
-    log("Received pastry-event "+info);
   }
 
   /**
@@ -234,6 +207,25 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   @Override
   public void resourceDiscovered(ResourceDiscoveredInfo info) {
     log("Received pastry-event "+info);
+    // TODO here goes a logic like the one in handleChunk()
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceReceived(ResourceReceivedInfo info) {
+    log("Received pastry-event "+info);
+    // TODO here goes a logic like the one in handleChunk()
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resourceRouted(ResourceRoutedInfo info) {
+    log("Received pastry-event "+info);
+    // TODO here goes a logic like the one in handleChunk()
   }
 
   /**
@@ -378,8 +370,10 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       storeIfNotStored(chunkMessage.getChunk());
       // advertise the new chunk
       advertiseChunk(chunkMessage);
-      // route the resource over the Pastry network
-      thisNode.publishResource(chunkMessage.getChunk());
+      if(chunkMessage.isFromSigma()) {
+        // route the resource over the Pastry network
+        thisNode.publishResource(chunkMessage.getChunk());
+      }
     } else {
       // send KO and abort
       handleChunk_SendKO(chunkMessage);
@@ -391,7 +385,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkAdvertisement
    */
   private void handleChunkAdvertisement(ChunkAdvertisement chunkAdvertisement) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log("[RCV] "+chunkAdvertisement);
   }
 
   /**
@@ -435,7 +429,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunk_SendKO(ChunkMessage chunkMessage) {
     ChunkKo ko = chunkMessage.replyKo();
-    sendOverReliableTransport(ko);
+    // by convention, should the sender be the source, we avoid sending the
+    // ack over the simulated transport
+    // otherwise we do
+    if(chunkMessage.isFromSigma()) {
+      StarStreamSource.chunkKo(ko);
+    } else {
+      sendOverReliableTransport(ko);
+    }
   }
 
   /**
@@ -447,7 +448,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunk_SendOK(ChunkMessage chunkMessage) {
     ChunkOk ok = chunkMessage.replyOk();
-    sendOverReliableTransport(ok);
+    // by convention, should the sender be the source, we avoid sending the
+    // ack over the simulated transport
+    // otherwise we do
+    if(chunkMessage.isFromSigma()) {
+      StarStreamSource.chunkOk(ok);
+    } else {
+      sendOverReliableTransport(ok);
+    }
   }
 
   /**
@@ -472,8 +480,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param msg The message
    */
   private void sendOverReliableTransport(StarStreamMessage msg) {
-    Transport t = (Transport) thisNode.getProtocol(FastConfig.getTransport(StarStreamProtocol.reliableTransportPid));
-    t.send(msg.getSource(), msg.getDestination(), msg, StarStreamProtocol.reliableTransportPid);
+    Transport t = (Transport) thisNode.getProtocol(StarStreamProtocol.reliableTransportPid);
+    t.send(msg.getSource(), msg.getDestination(), msg, thisNode.getStarStreamPid());
     log("[SND] "+msg);
   }
 

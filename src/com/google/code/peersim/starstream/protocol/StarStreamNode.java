@@ -9,6 +9,8 @@ import com.google.code.peersim.pastry.protocol.PastryNode;
 import com.google.code.peersim.pastry.protocol.PastryProtocol;
 import java.io.FileNotFoundException;
 import peersim.config.Configuration;
+import peersim.config.FastConfig;
+import peersim.transport.Transport;
 
 /**
  * This class represents a node that leverages both the *-Stream and the Pastry
@@ -62,11 +64,30 @@ public class StarStreamNode extends PastryNode {
   }
 
   /**
+   * Returns a reference to the configure <i>unreliable</i> transport for the
+   * *-Stream protocol.
+   *
+   * @return The unreliable transport
+   */
+  public Transport getStarStreamTransport() {
+    return (Transport) getProtocol(FastConfig.getTransport(STAR_STREAM_PID));
+  }
+
+  /**
+   * The PeerSim-assigned *-Stream protocol identifier.
+   *
+   * @return The PeerSim-assigned *-Stream protocol identifier.
+   */
+  public int getStarStreamPid() {
+    return STAR_STREAM_PID;
+  }
+
+  /**
    * Returns a reference to this node's assigned {@link StarStreamProtocol} instance.
    * @return The {@link StarStreamProtocol} instance
    */
   protected StarStreamProtocol getStarStreamProtocol() {
-    return (StarStreamProtocol) super.getProtocol(STAR_STREAM_PID);
+    return (StarStreamProtocol) getProtocol(STAR_STREAM_PID);
   }
 
   /**
