@@ -218,8 +218,6 @@ public abstract class StarStreamMessage {
    * @param dst The destination
    */
   protected StarStreamMessage(StarStreamNode src, StarStreamNode dst) {
-    if(src==null) throw new IllegalArgumentException("The source cannot be 'null'");
-    if(dst==null) throw new IllegalArgumentException("The destination cannot be 'null'");
     this.source = src;
     this.originator = src;
     this.destination = dst;
@@ -308,6 +306,14 @@ public abstract class StarStreamMessage {
    */
   public StarStreamNode getSource() {
     return source;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toString() {
+    return getType()+" "+getSource()+" "+getDestination()+" "+getHops();
   }
 
   /**

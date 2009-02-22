@@ -29,7 +29,7 @@ public class Chunk<T> extends PastryResource<T> {
    * @param sid The streaming-session identifier
    * @param seq The sequence number
    */
-  public Chunk(T chunk, UUID sid, int seq) {
+  Chunk(T chunk, UUID sid, int seq) {
     super(chunk);
     sessionId = sid;
     sequenceId = seq;
