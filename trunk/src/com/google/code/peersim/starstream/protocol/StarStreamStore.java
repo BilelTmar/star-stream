@@ -6,6 +6,7 @@
 package com.google.code.peersim.starstream.protocol;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
+import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;

@@ -6,7 +6,7 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.starstream.protocol.*;
-import com.google.code.peersim.starstream.protocol.Chunk.*;
+import com.google.code.peersim.starstream.protocol.ChunkUtils.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
