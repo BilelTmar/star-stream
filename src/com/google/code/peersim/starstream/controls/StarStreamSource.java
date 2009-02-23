@@ -6,8 +6,8 @@
 package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
-import com.google.code.peersim.starstream.protocol.Chunk;
 import com.google.code.peersim.starstream.protocol.ChunkUtils;
+import com.google.code.peersim.starstream.protocol.ChunkUtils.*;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import com.google.code.peersim.starstream.protocol.StarStreamProtocol;
 import com.google.code.peersim.starstream.protocol.messages.ChunkKo;
@@ -26,7 +26,6 @@ import peersim.core.CommonState;
 import peersim.core.Control;
 import peersim.core.Network;
 import peersim.edsim.EDSimulator;
-import peersim.transport.Transport;
 import peersim.util.FileNameGenerator;
 
 /**
@@ -52,16 +51,34 @@ import peersim.util.FileNameGenerator;
  * @since 0.1
  */
 public class StarStreamSource implements Control {
-
+  /**
+   * Single session-id applied to every chunk.
+   */
   private static final UUID SESSION_ID = UUID.randomUUID();
+  /**
+   * Configurable number of chunks that must be produced per simulated-time unit.
+   */
   public static final String CHUNKS_PER_TIME_UNIT = "chunksPerTimeUnit";
   private static int chunksPerTimeUnit;
+  /**
+   * Configurable number of nodes each new chunk must be sent to.
+   */
   public static final String NODES_PER_CHUNK = "nodesPerChunk";
   private static int nodesPerChunk;
+  /**
+   * Total number of chunks the source has to produce and send.
+   */
   public static final String CHUNKS = "chunks";
   private static int chunks;
+  /**
+   * Configurable simulated-time starting from which the source can begin producing and sending chunks.
+   */
   public static final String START_TIME = "start";
   private static long start;
+  /**
+   * Configurable simulated-time units before an ack for a sent {@link ChunkMessage} must be received before
+   * resending that chunk to another randomly choosen node.
+   */
   public static final String CHUNK_ACK_TIMEOUT = "ackTimeout";
   private static int ackTimeout;
   /**
@@ -82,6 +99,9 @@ public class StarStreamSource implements Control {
    * Whether this control class is active or not.
    */
   private static boolean enabled = true;
+  /**
+   * Counter of the chunks that have been created so far.
+   */
   private static int createdChunksCounter = 0;
   /**
    * Fake source-node for sending messages to other nodes.
@@ -121,7 +141,7 @@ public class StarStreamSource implements Control {
   public static void chunkOk(ChunkOk ok) {
     SentChunkDescriptor scd = sentChunks.get(ok.getChunkId());
     if(scd!=null) {
-      scd.receivedNacks++;
+      scd.receivedAcks++;
     } else {
       // we have received an ACK for a chunk that looks like has not been sent
       // by the source or, at least, has not been saved in the sentChunks data
@@ -164,25 +184,58 @@ public class StarStreamSource implements Control {
   }
 
   /**
-   * This method, is the {@link StarStreamSource} is enabled and the current simulated-time
+   * This method, if the {@link StarStreamSource} is enabled and the current simulated-time
    * is greater or equal to {@link StarStreamSource#start}, does what follows:
    * <ol>
-   * <li>produces {@link StarStreamSource#chunks} chunks</li>
+   * <li>produces {@link StarStreamSource#chunksPerTimeUnit} chunks iff
+   * {@link StarStreamSource#createdChunksCounter} &lt {@link StarStreamSource#chunks}</li>
    * <li>send each one of the chunks above to at most {@link StarStreamSource#nodesPerChunk} nodes</li>
    * </ol>
+   * Anyway, at each cycle, this method checks to see whether there are sent chunks that have
+   * not yet received enough acks. Each of these chunks is sent to a number of randomly choosen
+   * nodes as described in the general description of this component.
    *
    * {@inheritDoc}
    */
   @Override
   public boolean execute() {
     boolean stop = false;
-    if(enabled && CommonState.getTime()>=start && createdChunksCounter<chunks) {
-      Set<Chunk<?>> batch = produceChunks(SESSION_ID, chunksPerTimeUnit);
-      spreadChunks(batch,nodesPerChunk);
+    if(enabled && CommonState.getTime()>=start) {
+      // new chunks creation and diffusion
+      if(createdChunksCounter<chunks) {
+        Set<Chunk<?>> batch = produceChunks(SESSION_ID, chunksPerTimeUnit);
+        spreadChunks(batch,nodesPerChunk);
+      }
+      // check for expired timeouts
+      checkForExpiredTimeouts();
     }
     return stop;
   }
 
+  /**
+   * This method iterates over the set of already created chunks looking for those
+   * still waiting to be acked by the specified number of nodes and whose timeout
+   * is already expired.<br>
+   * If any of them is found, that chunk is sent again to the remaining number of
+   * nodes.
+   */
+  private void checkForExpiredTimeouts() {
+    Set<Chunk<?>> batch = new HashSet<Chunk<?>>();
+    for(Map.Entry<PastryId,SentChunkDescriptor> entry : sentChunks.entrySet()) {
+      batch.clear();
+      SentChunkDescriptor scd = entry.getValue();
+      if(scd.isPending() && (scd.isExpired())) {
+        batch.add(scd.chunk);
+        spreadChunks(batch, scd.getRemainingAcks());
+      }
+    }
+  }
+
+  /**
+   * Logs the given message to the configured stream.
+   *
+   * @param msg The message
+   */
   private void log(String msg) {
     stream.println(CommonState.getTime()+") "+msg);
   }
@@ -275,17 +328,64 @@ public class StarStreamSource implements Control {
     return (StarStreamNode) Network.get( CommonState.r.nextInt(Network.size()) );
   }
 
+  /**
+   * This descriptor is used internally to keep trace of the chunks that have been
+   * produced and sent over the network. For each of these chunks we keep trace of
+   * the number of nodes it has been sent to, and of how many acks and nacks have
+   * been received.<br>
+   * For each received nack the chunk is sent again to the node that issued the nack.<br>
+   * Upon timeout expiration the chunk is sent once again to a number of randomly choosen
+   * nodes equal to {@link SentChunkDescriptor#nodes}-{@link SentChunkDescriptor#receivedAcks}.
+   *
+   * @author frusso
+   * @version 0.1
+   * @since 0.1
+   */
   private static class SentChunkDescriptor {
+    /**
+     * The sent chunk.
+     */
     private final Chunk<?> chunk;
+    /**
+     * How many nodes the chunk has been sent to.
+     */
     private final int nodes;
+    /**
+     * The moment in time the chunk has been broadcasted
+     */
     private final long timestamp;
+    /**
+     * How many acks have been received for this chunk.
+     */
     private int receivedAcks = 0;
+    /**
+     * How many nacks have been received for this chunk.
+     */
     private int receivedNacks = 0;
 
+    /**
+     * Constructor.
+     *
+     * @param chunk The sent chunk
+     * @param nodes How many nodes the chunk has been sent to
+     * @param timestamp The moment in time the chunk has been broadcasted
+     */
     private SentChunkDescriptor(Chunk<?> chunk, int nodes, long timestamp) {
       this.chunk = chunk;
       this.nodes = nodes;
       this.timestamp = timestamp;
+    }
+
+    private int getRemainingAcks() {
+      return nodes - receivedAcks;
+    }
+
+    private boolean isPending() {
+      return nodes > receivedAcks;
+    }
+
+    private boolean isExpired() {
+      return timestamp+StarStreamSource.ackTimeout > CommonState.getTime();
     }
   }
 }
