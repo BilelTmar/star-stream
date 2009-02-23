@@ -17,12 +17,20 @@ import java.util.UUID;
  * @version 0.1
  * @since 0.1
  */
-class StarStreamStore {
+public class StarStreamStore {
 
   /**
    * Internal representation of the store.
    */
   private Map<UUID, Map<PastryId,Chunk<?>>> store;
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toString() {
+    return store.toString();
+  }
 
   /**
    * Constructor.
@@ -41,6 +49,9 @@ class StarStreamStore {
       chunks = new HashMap<PastryId, Chunk<?>>();
       store.put(chunk.getSessionId(), chunks);
     }
-    chunks.put(chunk.getResourceId(), chunk);
+    // store the resource iff it is not there yet
+    if(!chunks.containsKey(chunk.getResourceId())) {
+      chunks.put(chunk.getResourceId(), chunk);
+    }
   }
 }

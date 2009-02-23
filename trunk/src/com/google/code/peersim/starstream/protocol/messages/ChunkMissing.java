@@ -6,7 +6,9 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
+import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
+import java.util.UUID;
 
 /**
  * A {@link ChunkMissing} message must be used to signal a node that has issued
@@ -25,10 +27,11 @@ public class ChunkMissing extends ChunkAdvertisement {
    *
    * @param src The sender
    * @param dst The destination
-   * @param chunkId The identifier of the locally missing chunk
+   * @param sessionId The sessionID
+   * @param chunkId The chunk ID
    */
-  ChunkMissing(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
-    super(src, dst, chunkId);
+  ChunkMissing(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+    super(src, dst, sessionId, chunkId);
   }
 
   /**

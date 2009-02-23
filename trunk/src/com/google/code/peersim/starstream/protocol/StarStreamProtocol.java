@@ -95,17 +95,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   public static final String PASTRY_TRANSPORT = "pastryTransport";
   /**
-   * The protocol id assigned by the PeerSim runtime to the Pastry protocol instance.
-   */
-  private static int pastryTransportPid;
-  /**
    * Configurable file name for logging purposes.
    */
   public static final String LOG_FILE = "log";
-  /**
-   * Name of the configured log file (if any).
-   */
-  private static String logFile;
   /**
    * Property for configuring whether the protocol should log its activity or not.
    */
@@ -122,13 +114,10 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * Configuration prefix.
    */
   private static String prefix;
-
   /**
-   * This reference to the node associated with the current protocol instance
-   * is set-up whenevere a new event has to be processed and set back to {@code null}
-   * upon event-handling completion.
+   * This reference to the node associated with the current protocol instance.
    */
-  private StarStreamNode thisNode;
+  private StarStreamNode owner;
   /**
    * The stream to log to.
    */
@@ -157,10 +146,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     msgTimeout = Configuration.getInt(prefix+SEPARATOR+MSG_TIMEOUT);
     starStoreSize = Configuration.getInt(prefix+SEPARATOR+STAR_STORE_SIZE);
     reliableTransportPid = Configuration.getPid(prefix+SEPARATOR+REL_TRANSPORT);
-    pastryTransportPid = Configuration.getPid(prefix+SEPARATOR+PASTRY_TRANSPORT);
     doLog = Configuration.getBoolean(prefix+SEPARATOR+DO_LOG);
     if(doLog) {
-      stream = new PrintStream(new FileOutputStream(new FileNameGenerator(Configuration.getString(prefix + ".log"), ".log").nextCounterName()));
+      stream = new PrintStream(new FileOutputStream(new FileNameGenerator(Configuration.getString(prefix+SEPARATOR+LOG_FILE), ".log").nextCounterName()));
     }
     curruptedMessages = Configuration.getBoolean(prefix+SEPARATOR+CURRUPTED_MESSAGES);
     if(curruptedMessages) {
@@ -178,7 +166,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   public final Object clone() {
     try {
       Object clone = super.clone();
-      ((StarStreamProtocol)clone).thisNode = null;
+      ((StarStreamProtocol)clone).owner = null;
       ((StarStreamProtocol)clone).pastryProtocol = null;
       return clone;
     } catch (CloneNotSupportedException e) {
@@ -199,44 +187,79 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void resourceAssigned(ResourceAssignedInfo info) {
+    // NOP for now
   }
 
   /**
+   * When the underlying {@link PastryProtocol} instance discovers a resource
+   * that is a {@link Chunk}, a {@link StarStreamProtocol} instance must:
+   * <ol>
+   * <li>peek that resource and store it locally (in the *-Stream Store} if it
+   * has not been yet</li>
+   * <li>advertise that resource to a set of randomly choosen neighbors</li>
+   * </ol>
+   * <b>Note:</b> no further routing is required since the {@link PastryProtocol}
+   * instance is charge of that.
+   *
    * {@inheritDoc}
    */
   @Override
   public void resourceDiscovered(ResourceDiscoveredInfo info) {
     log("Received pastry-event "+info);
-    // TODO here goes a logic like the one in handleChunk()
+    Chunk<?> chunk = (Chunk<?>) info.getResource();
+    handleChunkFromPastry(chunk);
   }
 
   /**
+   * When the underlying {@link PastryProtocol} instance receives a resource
+   * that is a {@link Chunk}, a {@link StarStreamProtocol} instance must:
+   * <ol>
+   * <li>peek that resource and store it locally (in the *-Stream Store} if it
+   * has not been yet</li>
+   * <li>advertise that resource to a set of randomly choosen neighbors</li>
+   * </ol>
+   * <b>Note:</b> no further routing is required since the {@link PastryProtocol}
+   * instance is charge of that.
+   *
    * {@inheritDoc}
    */
   @Override
   public void resourceReceived(ResourceReceivedInfo info) {
     log("Received pastry-event "+info);
-    // TODO here goes a logic like the one in handleChunk()
+    Chunk<?> chunk = (Chunk<?>) info.getResource();
+    handleChunkFromPastry(chunk);
   }
 
   /**
+   * When the underlying {@link PastryProtocol} instance routes a resource
+   * that is a {@link Chunk}, a {@link StarStreamProtocol} instance must:
+   * <ol>
+   * <li>peek that resource and store it locally (in the *-Stream Store} if it
+   * has not been yet</li>
+   * <li>advertise that resource to a set of randomly choosen neighbors</li>
+   * </ol>
+   * <b>Note:</b> no further routing is required since the {@link PastryProtocol}
+   * instance is charge of that.
+   *
    * {@inheritDoc}
    */
   @Override
   public void resourceRouted(ResourceRoutedInfo info) {
     log("Received pastry-event "+info);
-    // TODO here goes a logic like the one in handleChunk()
+    Chunk<?> chunk = (Chunk<?>) info.getResource();
+    handleChunkFromPastry(chunk);
   }
 
   /**
+   * Routes the event, that must be assignable to {@link StarStreamMessage}, to
+   * the most appropriate handler.
    * 
-   * @param localNode
-   * @param thisProtocolId
-   * @param event
+   * @param localNode The local node
+   * @param thisProtocolId The protocol id
+   * @param event The event
    */
   @Override
   public void processEvent(Node localNode, int thisProtocolId, Object event) {
-    thisNode = (StarStreamNode) localNode;
     // event-handling logic begins
     if(event instanceof StarStreamMessage) {
       // this is a known event, let's process it
@@ -274,8 +297,17 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       // an unknown event has been received
       throw new IllegalStateException("An event of type "+event.getClass()+" has been received, but I do not know how to handle it.");
     }
-    // event-handling logic ends
-    thisNode = null;
+  }
+
+  /**
+   * Returns a reference to the local-store.
+   *
+   * @return The *-Store
+   */
+  StarStreamStore getStore() {
+    if(store==null)
+      store = new StarStreamStore();
+    return this.store;
   }
 
   /**
@@ -291,15 +323,36 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * This method must be used only by {@link StarStreamNode} instances to tie
+   * their identity to their own {@link StarStreamProtocol} instance.
+   *
+   * @param owner The owning node
+   */
+  void setOwner(StarStreamNode owner) {
+    this.owner = owner;
+  }
+
+  /**
    * Advertises the existence of a new chunk to a selection of neighbors.
    * The number of neighbors is based on how many ougoing connections this
    * node is able to create.
    *
-   * @param msg The message containing the chunk that has to be advertised
+   * @param msg The message containing the chunk that has to be advertised: can
+   * be {@code null} iff {@code isOnPastryEvent} is {@link Boolean#TRUE}
+   * @param isOnPastryEvent Must be {@link Boolean#TRUE} iff this method is invoked
+   * since a new {@link Chunk} has been received as a Pastry event. If this is the case
+   * the following {@link Chunk} parameter must be not {@code null}
+   * @param chunk The {@link Chunk} that must be advertised: not {@code null} iff
+   * {@code isOnPastryEvent} is {@link Boolean#TRUE}
    */
-  private void advertiseChunk(ChunkMessage msg) {
+  private void advertiseChunk(ChunkMessage msg, boolean isOnPastryEvent, Chunk<?> chunk) {
     Set<StarStreamNode> neighbors = selectOutNeighbors();
-    List<ChunkAdvertisement> advs = msg.createChunkAdvs(neighbors);
+    List<ChunkAdvertisement> advs = null;
+    if(isOnPastryEvent) {
+      advs = ChunkAdvertisement.newInstancesFor(owner,neighbors,chunk);
+    } else {
+      advs = msg.createChunkAdvs(neighbors);
+    }
     broadcastOverReliableTransport(advs);
   }
 
@@ -363,16 +416,16 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkMessage The message
    */
   private void handleChunk(ChunkMessage chunkMessage) {
-    log(thisNode+" received "+chunkMessage);
+    log(owner+" received "+chunkMessage);
     if(checkMessageIntegrity(chunkMessage)) {
       // send OK and proceede
       handleChunk_SendOK(chunkMessage);
       storeIfNotStored(chunkMessage.getChunk());
       // advertise the new chunk
-      advertiseChunk(chunkMessage);
+      advertiseChunk(chunkMessage, false, null);
       if(chunkMessage.isFromSigma()) {
         // route the resource over the Pastry network
-        thisNode.publishResource(chunkMessage.getChunk());
+        owner.publishResource(chunkMessage.getChunk());
       }
     } else {
       // send KO and abort
@@ -386,6 +439,16 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunkAdvertisement(ChunkAdvertisement chunkAdvertisement) {
     log("[RCV] "+chunkAdvertisement);
+  }
+
+  /**
+   * @see StarStreamProtocol#resourceRouted(com.google.code.peersim.pastry.protocol.PastryResourceAssignLsnrIfc.ResourceRoutedInfo)
+   * @see StarStreamProtocol#resourceReceived(com.google.code.peersim.pastry.protocol.PastryResourceAssignLsnrIfc.ResourceReceivedInfo)
+   * @see StarStreamProtocol#resourceDiscovered(com.google.code.peersim.pastry.protocol.PastryResourceDiscoveryLsnrIfc.ResourceDiscoveredInfo)
+   */
+  private void handleChunkFromPastry(Chunk<?> chunk) {
+    storeIfNotStored(chunk);
+    advertiseChunk(null,true,chunk);
   }
 
   /**
@@ -428,13 +491,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkMessage The message to reply to
    */
   private void handleChunk_SendKO(ChunkMessage chunkMessage) {
-    ChunkKo ko = chunkMessage.replyKo();
     // by convention, should the sender be the source, we avoid sending the
     // ack over the simulated transport
     // otherwise we do
     if(chunkMessage.isFromSigma()) {
-      StarStreamSource.chunkKo(ko);
+      StarStreamSource.chunkKo(chunkMessage.getChunk().getResourceId());
     } else {
+      ChunkKo ko = chunkMessage.replyKo();
       sendOverReliableTransport(ko);
     }
   }
@@ -447,13 +510,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkMessage The message to reply to
    */
   private void handleChunk_SendOK(ChunkMessage chunkMessage) {
-    ChunkOk ok = chunkMessage.replyOk();
     // by convention, should the sender be the source, we avoid sending the
     // ack over the simulated transport
     // otherwise we do
     if(chunkMessage.isFromSigma()) {
-      StarStreamSource.chunkOk(ok);
+      StarStreamSource.chunkOk(chunkMessage.getChunk().getResourceId());
     } else {
+      ChunkOk ok = chunkMessage.replyOk();
       sendOverReliableTransport(ok);
     }
   }
@@ -471,7 +534,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @return Zero or more Pastry neighbors
    */
   private Set<StarStreamNode> selectOutNeighbors() {
-    return thisNode.getPastryProtocol().getNeighbors(availableOutDeg());
+    return pastryProtocol.getNeighbors(availableOutDeg());
   }
 
   /**
@@ -480,8 +543,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param msg The message
    */
   private void sendOverReliableTransport(StarStreamMessage msg) {
-    Transport t = (Transport) thisNode.getProtocol(StarStreamProtocol.reliableTransportPid);
-    t.send(msg.getSource(), msg.getDestination(), msg, thisNode.getStarStreamPid());
+    Transport t = (Transport) owner.getProtocol(StarStreamProtocol.reliableTransportPid);
+    t.send(msg.getSource(), msg.getDestination(), msg, owner.getStarStreamPid());
     log("[SND] "+msg);
   }
 

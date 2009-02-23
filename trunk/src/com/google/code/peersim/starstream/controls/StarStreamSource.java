@@ -118,17 +118,17 @@ public class StarStreamSource implements Control {
    * Used by {@link StarStreamProtocol}s to signal that a chunk could have not
    * been received.
    *
-   * @param ko The KO message
+   * @param ko The chunk ID
    */
-  public static void chunkKo(ChunkKo ko) {
-    SentChunkDescriptor scd = sentChunks.get(ko.getChunkId());
+  public static void chunkKo(PastryId chunkId) {
+    SentChunkDescriptor scd = sentChunks.get(chunkId);
     if(scd!=null) {
       scd.receivedNacks++;
     } else {
       // we have received a NACK for a chunk that looks like has not been sent
       // by the source or, at least, has not been saved in the sentChunks data
       // structure: this is a really bad thing!
-      throw new IllegalStateException("BAD BAD THING: received a "+ko+" message for a chunk the source does not remember anything about!");
+      throw new IllegalStateException("BAD BAD THING: received a chunk ID "+chunkId+" the source does not know!");
     }
   }
 
@@ -136,17 +136,17 @@ public class StarStreamSource implements Control {
    * Used by {@link StarStreamProtocol}s to signal that a chunk has
    * been received and processed.
    * 
-   * @param ko The OK message
+   * @param ko The chunk ID
    */
-  public static void chunkOk(ChunkOk ok) {
-    SentChunkDescriptor scd = sentChunks.get(ok.getChunkId());
+  public static void chunkOk(PastryId chunkId) {
+    SentChunkDescriptor scd = sentChunks.get(chunkId);
     if(scd!=null) {
       scd.receivedAcks++;
     } else {
       // we have received an ACK for a chunk that looks like has not been sent
       // by the source or, at least, has not been saved in the sentChunks data
       // structure: this is a really bad thing!
-      throw new IllegalStateException("BAD BAD THING: received a "+ok+" message for a chunk the source does not remember anything about!");
+      throw new IllegalStateException("BAD BAD THING: received a chunk ID "+chunkId+" the source does not know!");
     }
   }
 
@@ -304,7 +304,18 @@ public class StarStreamSource implements Control {
       ChunkMessage msg = new ChunkMessage(SOURCE_ADDR, node, chunk);
       send(msg, node);
     }
+    // after the chunk has been broadcasted to the specified set of destination
+    // nodes, a new chunk-descriptor has to be created and saved for later use
+    // (timeout-expiration checks & chunk retransmissions)
     SentChunkDescriptor scd = new SentChunkDescriptor(chunk, nodes.size(), CommonState.getTime());
+    // the following write operation to the Map of sent chunks can overwrite a previously
+    // written chunk-descriptor: this can happen, and is legal, in case a chunk does not
+    // receive the full set of acks it is expected to within the configured time.
+    // In such a case the chunk is sent to the remaining number of nodes, and a new chunk
+    // descriptor has to be written into the Map a new timestamp (the current time).
+    // This happens with the following line of code since the new chunk descriptor carries
+    // the very same PastryId of the former one, and this ID is used as a key when putting
+    // the chunk descriptor into the Map
     sentChunks.put(scd.chunk.getResourceId(), scd);
   }
 
@@ -385,7 +396,7 @@ public class StarStreamSource implements Control {
     }
 
     private boolean isExpired() {
-      return timestamp+StarStreamSource.ackTimeout > CommonState.getTime();
+      return timestamp+StarStreamSource.ackTimeout < CommonState.getTime();
     }
   }
 }

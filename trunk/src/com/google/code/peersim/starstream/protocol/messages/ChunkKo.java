@@ -1,8 +1,10 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
+import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage.Type;
+import java.util.UUID;
 
 /**
  * This message is used to notify the sender of a {@link ChunkMessage} message that
@@ -22,10 +24,11 @@ public class ChunkKo extends ChunkAdvertisement {
    * 
    * @param src The sender
    * @param dst The destination
-   * @param chunkId The identifier of the chunk that has not been properly received
+   * @param sessionId The session ID
+   * @param chunkId The chunk ID
    */
-  ChunkKo(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
-    super(src, dst, chunkId);
+  ChunkKo(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+    super(src, dst, sessionId, chunkId);
   }
 
   /**

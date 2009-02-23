@@ -3,6 +3,7 @@ package com.google.code.peersim.starstream.protocol.messages;
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage.Type;
+import java.util.UUID;
 
 /**
  * This message is used to report the successful reception of a chunk, in response
@@ -20,10 +21,11 @@ public class ChunkOk extends ChunkAdvertisement {
    *
    * @param src The sender
    * @param dst The destination
-   * @param chunkId The identifier of the chunk whose reception has to be acknowledged
+   * @param sessionId The session ID
+   * @param chunkId The chunk ID
    */
-  ChunkOk(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
-    super(src, dst, chunkId);
+  ChunkOk(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+    super(src, dst, sessionId, chunkId);
   }
 
   /**

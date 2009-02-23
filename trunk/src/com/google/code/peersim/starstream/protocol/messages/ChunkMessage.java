@@ -47,7 +47,7 @@ public class ChunkMessage extends StarStreamMessage {
    * @return The {@link ChunkAdvertisement} message
    */
   public ChunkAdvertisement createChunkAdv(StarStreamNode dst) {
-    return new ChunkAdvertisement(getDestination(), dst, chunk.getResourceId());
+    return new ChunkAdvertisement(getDestination(), dst, chunk.getSessionId(), chunk.getResourceId());
   }
 
   /**
@@ -62,7 +62,7 @@ public class ChunkMessage extends StarStreamMessage {
   public List<ChunkAdvertisement> createChunkAdvs(Set<StarStreamNode> dsts) {
     List<ChunkAdvertisement> advs = new ArrayList<ChunkAdvertisement>();
     for(StarStreamNode dst : dsts) {
-      advs.add( new ChunkAdvertisement(getDestination(), dst, chunk.getResourceId()) );
+      advs.add(createChunkAdv(dst));
     }
     return advs;
   }
@@ -100,7 +100,7 @@ public class ChunkMessage extends StarStreamMessage {
    * @return The {@link ChunkKo} message
    */
   public ChunkKo replyKo() {
-    return new ChunkKo(getDestination(), getSource(), chunk.getResourceId());
+    return new ChunkKo(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId());
   }
 
   /**
@@ -110,7 +110,7 @@ public class ChunkMessage extends StarStreamMessage {
    * @return The {@link ChunkOk} message
    */
   public ChunkOk replyOk() {
-    return new ChunkOk(getDestination(), getSource(), chunk.getResourceId());
+    return new ChunkOk(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId());
   }
 
   @Override
