@@ -50,7 +50,7 @@ public class StarStreamNode extends PastryNode {
     // initialized by the PeerSim runtime, so this is the right time for takeing
     // references to Pastry and *-Stream and tight the two instance enabling the
     // latter to receive notifications from the former
-    bindStarStreamToPastry();
+    init();
   }
 
   /**
@@ -59,7 +59,7 @@ public class StarStreamNode extends PastryNode {
   @Override
   public Object clone() {
     StarStreamNode clone = (StarStreamNode) super.clone();
-    clone.bindStarStreamToPastry();
+    clone.init();
     return clone;
   }
 
@@ -83,6 +83,15 @@ public class StarStreamNode extends PastryNode {
   }
 
   /**
+   * Returns a reference to the *-Store owned by this node.
+   *
+   * @return The *-Store
+   */
+  public StarStreamStore getStore() {
+    return getStarStreamProtocol().getStore();
+  }
+
+  /**
    * Returns a reference to this node's assigned {@link StarStreamProtocol} instance.
    * @return The {@link StarStreamProtocol} instance
    */
@@ -95,7 +104,8 @@ public class StarStreamNode extends PastryNode {
    * the {@link StarStreamProtocol} instance register over the {@link PastryProtocol}
    * instance for Pastry-related events.
    */
-  private void bindStarStreamToPastry() {
+  private void init() {
+    getStarStreamProtocol().setOwner(this);
     PastryProtocol pastry = getPastryProtocol();
     getStarStreamProtocol().registerPastryListeners(pastry);
   }

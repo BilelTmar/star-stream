@@ -7,6 +7,7 @@ package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
+import java.util.UUID;
 
 /**
  * This message is used to express the interest in receiving a chunk that has
@@ -19,15 +20,15 @@ import com.google.code.peersim.starstream.protocol.StarStreamNode;
 public class ChunkRequest extends ChunkAdvertisement {
 
   /**
-   * Constructor. When creating a new instance, the specified source is also used to
-   * initialize the message originator.
+   * Constructor
    *
-   * @param src The sender
+   * @param src The source
    * @param dst The destination
-   * @param chunkId The identifier of the chunk we are interested in
+   * @param sessionId The session ID
+   * @param chunkId The chunk ID
    */
-  ChunkRequest(StarStreamNode src, StarStreamNode dst, PastryId chunkId) {
-    super(src, dst, chunkId);
+  protected ChunkRequest(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+    super(src, dst, sessionId, chunkId);
   }
 
   /**
@@ -46,6 +47,6 @@ public class ChunkRequest extends ChunkAdvertisement {
    * @return The {@link ChunkMissing} message
    */
   public ChunkMissing replyWithChunkMissing() {
-    return new ChunkMissing(getDestination(), getSource(), getChunkId());
+    return new ChunkMissing(getDestination(), getSource(), getSessionId(), getChunkId());
   }
 }
