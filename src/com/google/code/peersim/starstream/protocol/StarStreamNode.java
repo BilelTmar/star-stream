@@ -92,6 +92,14 @@ public class StarStreamNode extends PastryNode {
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toString() {
+    return super.toString()+"\n"+getStore();
+  }
+
+  /**
    * Returns a reference to this node's assigned {@link StarStreamProtocol} instance.
    * @return The {@link StarStreamProtocol} instance
    */

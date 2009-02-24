@@ -45,13 +45,6 @@ public abstract class StarStreamMessage {
       public int getEstimatedBandwidth() {
         throw new UnsupportedOperationException();
       }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk message";
-      }
     },
     /**
      * This kind of message typically travels over unreliable transports and is
@@ -69,13 +62,6 @@ public abstract class StarStreamMessage {
         // something link 248 bits
         return 248;
       }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk OK message";
-      }
     },
     /**
      * This kind of message typically travels over unreliable transports and is
@@ -92,13 +78,6 @@ public abstract class StarStreamMessage {
         // (which is a 128 bit long string), this message will presumably consume
         // something link 248 bits
         return 248;
-      }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk KO message";
       }
     },
     /**
@@ -118,13 +97,6 @@ public abstract class StarStreamMessage {
         // something link 248 bits
         return 248;
       }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk advertisement message";
-      }
     },
     /**
      * This kind of message typically travels over reliable transports and is
@@ -141,13 +113,6 @@ public abstract class StarStreamMessage {
         // (which is a 128 bit long string), this message will presumably consume
         // something link 248 bits
         return 248;
-      }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk request message";
       }
     },
     /**
@@ -166,13 +131,6 @@ public abstract class StarStreamMessage {
         // something link 248 bits
         return 248;
       }
-      /**
-       * {@inheritDoc}
-       */
-      @Override
-      public String toString() {
-        return "Chunk missing message";
-      }
     };
 
     /**
@@ -187,7 +145,9 @@ public abstract class StarStreamMessage {
      * Returns a human-readable description of the message type.
      */
     @Override
-    public abstract String toString();
+    public String toString() {
+      return name();
+    }
   }
 
   /**
@@ -313,7 +273,9 @@ public abstract class StarStreamMessage {
    */
   @Override
   public String toString() {
-    return getType()+" "+getSource()+" "+getDestination()+" "+getHops();
+    return "Type: "+getType()+" Src: "+
+            (getSource()!=null ? getSource().getPastryId() : null)+
+            " Dst: "+getDestination().getPastryId()+" Hops: "+getHops();
   }
 
   /**

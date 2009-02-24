@@ -6,7 +6,7 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.starstream.protocol.*;
-import com.google.code.peersim.starstream.protocol.ChunkUtils.*;
+import com.google.code.peersim.starstream.controls.ChunkUtils.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -113,8 +113,11 @@ public class ChunkMessage extends StarStreamMessage {
     return new ChunkOk(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId());
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String toString() {
-    return super.toString()+" "+getChunk();
+    return super.toString()+" Chunk: "+getChunk();
   }
 }

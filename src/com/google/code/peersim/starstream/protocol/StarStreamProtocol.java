@@ -11,7 +11,7 @@ import com.google.code.peersim.pastry.protocol.PastryProtocolListenerIfc;
 import com.google.code.peersim.pastry.protocol.PastryResourceAssignLsnrIfc.ResourceAssignedInfo;
 import com.google.code.peersim.pastry.protocol.PastryResourceDiscoveryLsnrIfc.ResourceDiscoveredInfo;
 import com.google.code.peersim.starstream.controls.StarStreamSource;
-import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
+import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import com.google.code.peersim.starstream.protocol.messages.ChunkAdvertisement;
 import com.google.code.peersim.starstream.protocol.messages.ChunkKo;
 import com.google.code.peersim.starstream.protocol.messages.ChunkMessage;
@@ -179,7 +179,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void joined(JoinedInfo info) {
-    log("Received pastry-event "+info);
+    log("[PASTRY-EVENT] "+info);
   }
 
   /**
@@ -205,7 +205,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void resourceDiscovered(ResourceDiscoveredInfo info) {
-    log("Received pastry-event "+info);
+    log("[PASTRY-EVENT] "+info);
     Chunk<?> chunk = (Chunk<?>) info.getResource();
     handleChunkFromPastry(chunk);
   }
@@ -225,7 +225,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void resourceReceived(ResourceReceivedInfo info) {
-    log("Received pastry-event "+info);
+    log("[PASTRY-EVENT] "+info);
     Chunk<?> chunk = (Chunk<?>) info.getResource();
     handleChunkFromPastry(chunk);
   }
@@ -245,7 +245,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void resourceRouted(ResourceRoutedInfo info) {
-    log("Received pastry-event "+info);
+    log("[PASTRY-EVENT] "+info);
     Chunk<?> chunk = (Chunk<?>) info.getResource();
     handleChunkFromPastry(chunk);
   }
@@ -416,7 +416,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkMessage The message
    */
   private void handleChunk(ChunkMessage chunkMessage) {
-    log(owner+" received "+chunkMessage);
+    log("[RCV] "+chunkMessage);
     if(checkMessageIntegrity(chunkMessage)) {
       // send OK and proceede
       handleChunk_SendOK(chunkMessage);
@@ -526,7 +526,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param msg The log message
    */
   private void log(String msg) {
-    stream.print(CommonState.getTime()+") ["+pastryProtocol.getPastryId()+"] "+msg+"\n");
+    stream.print(CommonState.getTime()+") "+msg+"\n");
   }
 
   /**

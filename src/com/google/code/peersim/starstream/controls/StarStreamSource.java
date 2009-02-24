@@ -6,13 +6,10 @@
 package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
-import com.google.code.peersim.starstream.protocol.ChunkUtils;
-import com.google.code.peersim.starstream.protocol.ChunkUtils.*;
+import com.google.code.peersim.starstream.controls.ChunkUtils.*;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import com.google.code.peersim.starstream.protocol.StarStreamProtocol;
-import com.google.code.peersim.starstream.protocol.messages.ChunkKo;
 import com.google.code.peersim.starstream.protocol.messages.ChunkMessage;
-import com.google.code.peersim.starstream.protocol.messages.ChunkOk;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;

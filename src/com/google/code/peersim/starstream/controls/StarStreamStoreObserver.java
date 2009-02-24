@@ -2,7 +2,6 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
@@ -35,7 +34,6 @@ public class StarStreamStoreObserver implements Control {
    */
   public static final String LOG_FILE = "log";
   private static final String SEPARATOR = ".";
-
   /**
    * Whether to log or not.
    */
@@ -57,9 +55,9 @@ public class StarStreamStoreObserver implements Control {
    */
   public StarStreamStoreObserver(String prefix) throws FileNotFoundException {
     super();
-    doLog = Configuration.getBoolean(prefix+SEPARATOR+DO_LOG);
-    if(doLog) {
-      logFile = new FileNameGenerator(Configuration.getString(prefix+SEPARATOR+LOG_FILE), ".log").nextCounterName();
+    doLog = Configuration.getBoolean(prefix + SEPARATOR + DO_LOG);
+    if (doLog) {
+      logFile = new FileNameGenerator(Configuration.getString(prefix + SEPARATOR + LOG_FILE), ".log").nextCounterName();
       stream = new PrintStream(new FileOutputStream(logFile));
     }
   }
@@ -74,15 +72,23 @@ public class StarStreamStoreObserver implements Control {
   @Override
   public boolean execute() {
     boolean stop = false;
-    if(CommonState.getTime()==CommonState.getEndTime()-1) {
-      int dim = Network.size();
-      for(int i=0; i<dim; i++) {
-        StarStreamNode node = (StarStreamNode) Network.get(i);
-        StarStreamStore store = node.getStore();
-        log(node.toString()+" "+store.toString());
-      }
+    if (doLog && (CommonState.getTime() == CommonState.getEndTime()-1)) {
+      dump();
     }
     return stop;
+  }
+
+  /**
+   * Dumps down to the log file.
+   */
+  private void dump() {
+    System.err.print("Dumping *-Stream stores to file " + logFile + "... ");
+    int dim = Network.size();
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      log(node.toString());
+    }
+    System.err.print("done!\n\n");
   }
 
   /**
