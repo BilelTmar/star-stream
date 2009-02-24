@@ -6,7 +6,7 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
-import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
+import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import java.util.UUID;
 

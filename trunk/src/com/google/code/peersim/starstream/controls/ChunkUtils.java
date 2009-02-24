@@ -1,4 +1,4 @@
-package com.google.code.peersim.starstream.protocol;
+package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.pastry.protocol.PastryResource;
@@ -6,11 +6,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 /**
+ * This class is useful to disparate other components that need to deal with chunks.
+ * It must be used as a <i>chunks-factory</i> (i.e. by the {@link StarStreamSource}),
+ * and as a centralized <i>generated chunk identifiers repository</i> by *-Stream
+ * Chunk Schedulers.
  *
  * @author frusso
  * @version 0.1
@@ -18,6 +18,12 @@ import java.util.UUID;
  */
 public class ChunkUtils {
 
+  /**
+   * Memory of generated chunk-identifiers. It has a two-level depth, the first one
+   * being the *-Stream session identifier (an UUID), and the second being a chunk's
+   * sequence identifier. The final value that can be accessed is the concrete chunk
+   * identifier, that is a {@link PastryId}.
+   */
   private static Map<UUID, Map<Integer, PastryId>> chunkIds = new HashMap<UUID, Map<Integer, PastryId>>();
 
   /**
@@ -29,7 +35,7 @@ public class ChunkUtils {
    * @param seqNumber The chunk sequence number
    * @return The new chunk
    */
-  public static <T> Chunk<T> createChunk(T data, UUID sid, int seqNumber) {
+  static <T> Chunk<T> createChunk(T data, UUID sid, int seqNumber) {
     Chunk<T> chunk = new Chunk<T>(data, sid, seqNumber);
     storeNewChunkIdentity(chunk);
     return chunk;

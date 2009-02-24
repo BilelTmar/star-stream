@@ -6,7 +6,7 @@
 package com.google.code.peersim.starstream.protocol;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
-import com.google.code.peersim.starstream.protocol.ChunkUtils.Chunk;
+import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +29,18 @@ public class StarStreamStore {
    */
   @Override
   public String toString() {
-    return store.toString();
+    StringBuilder sb = new StringBuilder();
+    for(Map.Entry<UUID,Map<PastryId,Chunk<?>>> entry : store.entrySet()) {
+      UUID sid = entry.getKey();
+      sb.append("SessionId: "+sid+"\n");
+      Map<PastryId,Chunk<?>> chunks = entry.getValue();
+      sb.append("Size: "+chunks.size()+"\n");
+      int i = 0;
+      for(Map.Entry<PastryId,Chunk<?>> chunk : chunks.entrySet()) {
+        sb.append((i++)+") "+chunk.getValue()+"\n");
+      }
+    }
+    return sb.toString();
   }
 
   /**
