@@ -129,7 +129,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * This is the *-Stream local-store for storing chunks.
    */
-  private StarStreamStore store;
+  private StarStreamStore store = new StarStreamStore();
 
   
   private static int outDeg;
@@ -168,6 +168,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       Object clone = super.clone();
       ((StarStreamProtocol)clone).owner = null;
       ((StarStreamProtocol)clone).pastryProtocol = null;
+      ((StarStreamProtocol)clone).store = new StarStreamStore();
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Cloning failed. See nested exceptions, please.", e);
@@ -305,8 +306,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @return The *-Store
    */
   StarStreamStore getStore() {
-    if(store==null)
-      store = new StarStreamStore();
     return this.store;
   }
 
@@ -434,11 +433,31 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * When a node receives a {@link ChunkAdvertisement} it has to:
+   * <ol>
+   * <li>check whether the advertised chunk is already locally stored or not</li>
+   * <li>should the chunk have not been received yet, the node has to issue a
+   * {@link ChunkRequest} message to the advertising node, showing interest in
+   * receiving that chunk</li>
+   * </ol>
+   * <b>Note:</b> both the {@link ChunkAdvertisement} and the {@link ChunkRequest}
+   * travel over the reliable transport available to each {@link StarStreamProtocol}
+   * instance.
    *
-   * @param chunkAdvertisement
+   * @param chunkAdvertisement The chunk advertisement
    */
   private void handleChunkAdvertisement(ChunkAdvertisement chunkAdvertisement) {
     log("[RCV] "+chunkAdvertisement);
+    if(!store.isStored(chunkAdvertisement.getSessionId(), chunkAdvertisement.getChunkId())) {
+      // the chunk is not locally available, thus we need to reply to the advertising
+      // node with a chunk request message and wait for the chunk to arrive
+      ChunkRequest chunkReq = chunkAdvertisement.replyWithChunkReq();
+      sendOverReliableTransport(chunkReq);
+    } else {
+      // the chunk is already stored in the local *-Stream store, thus there is no
+      // need and doing anything else
+      // NOP
+    }
   }
 
   /**
@@ -456,7 +475,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkKo
    */
   private void handleChunkKo(ChunkKo chunkKo) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log("[RCV] "+chunkKo);
   }
 
   /**
@@ -464,7 +483,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkMissing
    */
   private void handleChunkMissing(ChunkMissing chunkMissing) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log("[RCV] "+chunkMissing);
   }
 
   /**
@@ -472,15 +491,37 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkOk
    */
   private void handleChunkOk(ChunkOk chunkOk) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log("[RCV] "+chunkOk);
   }
 
   /**
-   * 
+   * A request for a chunk, that is a {@link ChunkRequest} message can be received:
+   * <ol>
+   * <li>either in response to a previously issued {@link ChunkAdvertisement}</li>
+   * <li>or as the effect of a proactive search initiated by a *-Stream node</li>
+   * </ol>
+   * In either case the receiving node has to:
+   * <ol>
+   * <li>check whether the requested chunk is locally available or not</li>
+   * <li>if the chunk is available, reply with a {@link ChunkMessage} message;<br>
+   * if the chunk is not available, reply with a {@link ChunkMissing} message</li>
+   * </ol>
+   * <b>Note:</b> the {@link ChunkMessage} has to travel over the unreliable transport
+   * while the {@link ChunkMissing} has to travel over the reliable transpor.
+   *
    * @param chunkRequest
    */
   private void handleChunkRequest(ChunkRequest chunkRequest) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    log("[RCV] "+chunkRequest);
+    Chunk<?> chunk = store.getChunk(chunkRequest.getSessionId(), chunkRequest.getChunkId());
+    if(chunk!=null) {
+      // the chunk is locally available, let's reply with a chunk message
+      ChunkMessage chunkMessage = chunkRequest.replyWithChunkMessage(chunk);
+      sendOverUnreliableTransport(chunkMessage);
+    } else {
+      ChunkMissing chunkMissing = chunkRequest.replyWithChunkMissing();
+      sendOverReliableTransport(chunkMissing);
+    }
   }
 
   /**
@@ -544,6 +585,17 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void sendOverReliableTransport(StarStreamMessage msg) {
     Transport t = (Transport) owner.getProtocol(StarStreamProtocol.reliableTransportPid);
+    t.send(msg.getSource(), msg.getDestination(), msg, owner.getStarStreamPid());
+    log("[SND] "+msg);
+  }
+
+  /**
+   * Send the input {@link StarStreamMessage} over the configured unreliable transport.
+   *
+   * @param msg The message
+   */
+  private void sendOverUnreliableTransport(StarStreamMessage msg) {
+    Transport t = (Transport) owner.getStarStreamTransport();
     t.send(msg.getSource(), msg.getDestination(), msg, owner.getStarStreamPid());
     log("[SND] "+msg);
   }

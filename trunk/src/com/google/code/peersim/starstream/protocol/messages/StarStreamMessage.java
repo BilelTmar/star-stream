@@ -161,7 +161,7 @@ public abstract class StarStreamMessage {
   /**
    * Unique message identifier.
    */
-  private UUID id;
+  private UUID messageId;
   /**
    * The node that originally sent the message for first.
    */
@@ -181,7 +181,7 @@ public abstract class StarStreamMessage {
     this.source = src;
     this.originator = src;
     this.destination = dst;
-    id = UUID.randomUUID();
+    messageId = UUID.randomUUID();
     hops = 0;
   }
 
@@ -203,7 +203,7 @@ public abstract class StarStreamMessage {
       return false;
 
     StarStreamMessage that = (StarStreamMessage)obj;
-    return this.id.equals(that.id) &&
+    return this.messageId.equals(that.messageId) &&
             this.getType().equals(that.getType());
   }
 
@@ -213,7 +213,7 @@ public abstract class StarStreamMessage {
   @Override
   public int hashCode() {
     int hash = 17;
-    hash = 31 * hash + this.id.hashCode();
+    hash = 31 * hash + this.messageId.hashCode();
     hash = 31 * hash + this.getType().hashCode();
     return hash;
   }
@@ -248,8 +248,8 @@ public abstract class StarStreamMessage {
    * The unique immutable identifier associated with the message.
    * @return The message identifier
    */
-  public UUID getId() {
-    return id;
+  public UUID getMessageId() {
+    return messageId;
   }
 
   /**
