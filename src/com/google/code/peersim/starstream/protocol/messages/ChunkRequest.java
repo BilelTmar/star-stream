@@ -6,6 +6,7 @@
 package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
+import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
 import java.util.UUID;
 
@@ -48,5 +49,17 @@ public class ChunkRequest extends ChunkAdvertisement {
    */
   public ChunkMissing replyWithChunkMissing() {
     return new ChunkMissing(getDestination(), getSource(), getSessionId(), getChunkId());
+  }
+
+  /**
+   * If a node that receives a {@link ChunkRequest} is able to provide the
+   * inquiring node with the requested chunk, this method must be used to create
+   * a {@link ChunkMessage} message.
+   *
+   * @param chunk The chunk that has to be actually sent
+   * @return The {@link ChunkMessage} message
+   */
+  public ChunkMessage replyWithChunkMessage(Chunk<?> chunk) {
+    return new ChunkMessage(getDestination(), getSource(), chunk);
   }
 }
