@@ -57,8 +57,10 @@ public class StarStreamStore {
   /**
    * Stores the given chunk iff it not already in the store.
    * @param chunk The chunk to be added
+   * @return Whether the chunk has been added or not
    */
-  void addChunk(Chunk<?> chunk) {
+  boolean addChunk(Chunk<?> chunk) {
+    boolean added = false;
     Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
     if(chunks==null) {
       chunks = new HashMap<PastryId, Chunk<?>>();
@@ -67,7 +69,9 @@ public class StarStreamStore {
     // store the resource iff it is not there yet
     if(!chunks.containsKey(chunk.getResourceId())) {
       chunks.put(chunk.getResourceId(), chunk);
+      added = true;
     }
+    return added;
   }
 
   /**

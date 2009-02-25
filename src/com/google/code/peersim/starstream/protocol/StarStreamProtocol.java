@@ -19,9 +19,12 @@ import com.google.code.peersim.starstream.protocol.messages.ChunkMissing;
 import com.google.code.peersim.starstream.protocol.messages.ChunkOk;
 import com.google.code.peersim.starstream.protocol.messages.ChunkRequest;
 import com.google.code.peersim.starstream.protocol.messages.StarStreamMessage;
+import com.sun.org.apache.bcel.internal.generic.IFEQ;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import peersim.config.Configuration;
@@ -130,10 +133,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * This is the *-Stream local-store for storing chunks.
    */
   private StarStreamStore store = new StarStreamStore();
+  /**
+   * Set of listeners configured to listen to protocol events.
+   */
+  private List<StarStreamProtocolListenerIfc> listeners = new ArrayList<StarStreamProtocolListenerIfc>();
 
-  
   private static int outDeg;
   private static int inDeg;
+  
 
   /**
    * Constructor. Sets up only those configuration parameters that can be set
@@ -169,6 +176,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       ((StarStreamProtocol)clone).owner = null;
       ((StarStreamProtocol)clone).pastryProtocol = null;
       ((StarStreamProtocol)clone).store = new StarStreamStore();
+      ((StarStreamProtocol)clone).listeners = new ArrayList<StarStreamProtocolListenerIfc>();
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Cloning failed. See nested exceptions, please.", e);
@@ -181,6 +189,64 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   @Override
   public void joined(JoinedInfo info) {
     log("[PASTRY-EVENT] "+info);
+  }
+
+  /**
+   * Routes the event, that must be assignable to {@link StarStreamMessage}, to
+   * the most appropriate handler.
+   *
+   * @param localNode The local node
+   * @param thisProtocolId The protocol id
+   * @param event The event
+   */
+  @Override
+  public void processEvent(Node localNode, int thisProtocolId, Object event) {
+    // event-handling logic begins
+    if(event instanceof StarStreamMessage) {
+      // this is a known event, let's process it
+      StarStreamMessage msg = (StarStreamMessage)event;
+      switch(msg.getType()) {
+        case CHUNK : {
+          handleChunk((ChunkMessage)msg);
+          break;
+        }
+        case CHUNK_OK : {
+          handleChunkOk((ChunkOk)msg);
+          break;
+        }
+        case CHUNK_KO : {
+          handleChunkKo((ChunkKo)msg);
+          break;
+        }
+        case CHUNK_ADV : {
+          handleChunkAdvertisement((ChunkAdvertisement)msg);
+          break;
+        }
+        case CHUNK_REQ : {
+          handleChunkRequest((ChunkRequest)msg);
+          break;
+        }
+        case CHUNK_MISSING : {
+          handleChunkMissing((ChunkMissing)msg);
+          break;
+        }
+        default: {
+          throw new IllegalStateException("A message of type "+msg.getType()+" has been received, but I do not know how to handle it.");
+        }
+      }
+    } else {
+      // an unknown event has been received
+      throw new IllegalStateException("An event of type "+event.getClass()+" has been received, but I do not know how to handle it.");
+    }
+  }
+
+  /**
+   * Register the given listener for *-Stream protocol events.
+   * 
+   * @param lsnr The listener
+   */
+  public void registerStarStreamListener(StarStreamProtocolListenerIfc lsnr) {
+    listeners.add(lsnr);
   }
 
   /**
@@ -252,52 +318,12 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
-   * Routes the event, that must be assignable to {@link StarStreamMessage}, to
-   * the most appropriate handler.
+   * Removes the give listener from the set of registered ones.
    * 
-   * @param localNode The local node
-   * @param thisProtocolId The protocol id
-   * @param event The event
+   * @param lsnr The listener
    */
-  @Override
-  public void processEvent(Node localNode, int thisProtocolId, Object event) {
-    // event-handling logic begins
-    if(event instanceof StarStreamMessage) {
-      // this is a known event, let's process it
-      StarStreamMessage msg = (StarStreamMessage)event;
-      switch(msg.getType()) {
-        case CHUNK : {
-          handleChunk((ChunkMessage)msg);
-          break;
-        }
-        case CHUNK_OK : {
-          handleChunkOk((ChunkOk)msg);
-          break;
-        }
-        case CHUNK_KO : {
-          handleChunkKo((ChunkKo)msg);
-          break;
-        }
-        case CHUNK_ADV : {
-          handleChunkAdvertisement((ChunkAdvertisement)msg);
-          break;
-        }
-        case CHUNK_REQ : {
-          handleChunkRequest((ChunkRequest)msg);
-          break;
-        }
-        case CHUNK_MISSING : {
-          handleChunkMissing((ChunkMissing)msg);
-          break;
-        }
-        default: {
-          throw new IllegalStateException("A message of type "+msg.getType()+" has been received, but I do not know how to handle it.");
-        }
-      }
-    } else {
-      // an unknown event has been received
-      throw new IllegalStateException("An event of type "+event.getClass()+" has been received, but I do not know how to handle it.");
-    }
+  public void unregisterStarStreamListener(StarStreamProtocolListenerIfc lsnr) {
+    listeners.remove(lsnr);
   }
 
   /**
@@ -571,6 +597,20 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * Notifies the registered listeners about the availability of a new chunk
+   * in the *-Stream local store.
+   *
+   * @param chunk The new chunk
+   */
+  private void notifyChunkStoredToListeners(Chunk<?> chunk) {
+    if(listeners!=null) {
+      for(StarStreamProtocolListenerIfc lsnr : listeners) {
+        lsnr.notifyNewChunk(chunk);
+      }
+    }
+  }
+
+  /**
    * Randomly selects neighbors according to Pastry's <i>neighbor</i> definition.
    * @return Zero or more Pastry neighbors
    */
@@ -609,6 +649,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private void storeIfNotStored(Chunk<?> chunk) {
     if(store==null)
       store = new StarStreamStore();
-    store.addChunk(chunk);
+    if(store.addChunk(chunk)) {
+      // the chunk has been added to the local store
+      notifyChunkStoredToListeners(chunk);
+    } else {
+      // the chunk has not been added to the local store: this means it was
+      // already there
+      // NOP
+    }
   }
 }
