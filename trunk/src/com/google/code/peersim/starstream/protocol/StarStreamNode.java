@@ -7,6 +7,7 @@ package com.google.code.peersim.starstream.protocol;
 
 import com.google.code.peersim.pastry.protocol.PastryNode;
 import com.google.code.peersim.pastry.protocol.PastryProtocol;
+import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import java.io.FileNotFoundException;
 import peersim.config.Configuration;
 import peersim.config.FastConfig;
@@ -22,7 +23,7 @@ import peersim.transport.Transport;
  * @version 0.1
  * @since 0.1
  */
-public class StarStreamNode extends PastryNode {
+public class StarStreamNode extends PastryNode implements StarStreamProtocolListenerIfc {
 
   /**
    * Configuration parameter key that ties a *-Stream node to its *-Stream protocol.
@@ -114,7 +115,16 @@ public class StarStreamNode extends PastryNode {
    */
   private void init() {
     getStarStreamProtocol().setOwner(this);
+    getStarStreamProtocol().registerStarStreamListener(this);
     PastryProtocol pastry = getPastryProtocol();
     getStarStreamProtocol().registerPastryListeners(pastry);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void notifyNewChunk(Chunk<?> chunk) {
+    log("[*-STREAM] node "+this.getPastryId()+" has stored resource "+chunk);
   }
 }
