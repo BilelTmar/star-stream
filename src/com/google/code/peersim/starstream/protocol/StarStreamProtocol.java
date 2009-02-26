@@ -24,9 +24,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import peersim.config.Configuration;
 import peersim.core.CommonState;
 import peersim.core.Node;
@@ -86,6 +89,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private static int chunkExpiration;
   /**
+   * How many simulation-time units a node should try and send a chunk to another one.
+   */
+  public static final String MAX_CHUNK_RETRIES = "maxChunkRetries";
+  /**
+   * How many simulation-time units a node should try and send a chunk to another one.
+   */
+  private static int maxChunkRetries;
+  /**
    * Reliable transport protocol for *-Stream.
    */
   public static final String REL_TRANSPORT = "reliableTransport";
@@ -137,9 +148,15 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * Set of listeners configured to listen to protocol events.
    */
   private List<StarStreamProtocolListenerIfc> listeners = new ArrayList<StarStreamProtocolListenerIfc>();
+  /**
+   * Memory that associates a *-Stream message identifier with the message it refers to.
+   * The identifier is meant to be matched to incoming messages' correlation-identifiers.
+   */
+  private Map<UUID,ChunkMessage> pendingChunkMessages = new HashMap<UUID, ChunkMessage>();
 
   private static int outDeg;
   private static int inDeg;
+
   
 
   /**
@@ -164,6 +181,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     chunkExpiration = Configuration.getInt(prefix+SEPARATOR+CHUNK_EXPIRATION);
     outDeg = Configuration.getInt(prefix+SEPARATOR+"outDeg");
     inDeg = Configuration.getInt(prefix+SEPARATOR+"inDeg");
+    maxChunkRetries = Configuration.getInt(prefix+SEPARATOR+MAX_CHUNK_RETRIES);
   }
 
   /**
@@ -177,6 +195,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       ((StarStreamProtocol)clone).pastryProtocol = null;
       ((StarStreamProtocol)clone).store = new StarStreamStore();
       ((StarStreamProtocol)clone).listeners = new ArrayList<StarStreamProtocolListenerIfc>();
+      ((StarStreamProtocol)clone).pendingChunkMessages = new HashMap<UUID, ChunkMessage>();
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Cloning failed. See nested exceptions, please.", e);
@@ -327,6 +346,36 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * This method must be invoked to check whether there are expired {@link ChunkMessage}s}.
+   * Each expired message gets removed from the memory and is sent again iff the
+   * message has not been sent for the maximum amount of times yet.
+   */
+  void checkForTimeouts() {
+    // preparatory phase
+    long currentTime = CommonState.getTime();
+    List<UUID> expired = new ArrayList<UUID>();
+    // search
+    for(Map.Entry<UUID,ChunkMessage> pending : pendingChunkMessages.entrySet()) {
+      if(pending.getValue().getTimeStamp()+msgTimeout < currentTime) {
+        // this message has expired!
+        expired.add(pending.getKey());
+      }
+    }
+    // removal & resending
+    for(UUID id : expired) {
+      ChunkMessage msg = pendingChunkMessages.remove(id);
+      if(msg!=null) {
+        // resend iff the retry-time has not reached the configured max amount yet
+        if(msg.getRetry()<maxChunkRetries) {
+          // resend
+          msg.increaseRetry();
+          sendChunkMessage(msg);
+        }
+      }
+    }
+  }
+
+  /**
    * Returns a reference to the local-store.
    *
    * @return The *-Store
@@ -360,7 +409,11 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Advertises the existence of a new chunk to a selection of neighbors.
    * The number of neighbors is based on how many ougoing connections this
-   * node is able to create.
+   * node is able to create.<br>
+   * <b>Note:</b> advertisements travel over a reliable transport<br>
+   * <b>Note:</b> as the *-Stream protocol says, this message must not be necessarly
+   * followed by anyother message: a receiving node might reply or not according to
+   * its interest in the advertised chunk
    *
    * @param msg The message containing the chunk that has to be advertised: can
    * be {@code null} iff {@code isOnPastryEvent} is {@link Boolean#TRUE}
@@ -497,11 +550,22 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * When a {@link ChunkKo} message is received, we know that the sender of that
+   * message was not able (for whichever reason) to properly receive the chunk the
+   * message refers to.<br>
+   * For this reason, the protocol states that a node receiving a {@link ChunkKo}
+   * message must:
+   * <ol>
+   * <li>check to see whether the chunk is locally available or not</li>
+   * <li>if the chunk was actually available the node should send it using a {@link ChunkMessage},
+   * otherwise a {@link ChunkMissing} message must be sent</li>
+   * </ol>
    *
-   * @param chunkKo
+   * @param chunkKo The KO message
    */
   private void handleChunkKo(ChunkKo chunkKo) {
-    log("[RCV] "+chunkKo);
+    removeFromPendingChunks(chunkKo);
+    tryAndSendChunk(chunkKo);
   }
 
   /**
@@ -510,14 +574,23 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunkMissing(ChunkMissing chunkMissing) {
     log("[RCV] "+chunkMissing);
+    // TODO
   }
 
   /**
+   * When a {@link ChunkOk} message is received, it means that a node we previously
+   * sent a {@link ChunkMessage} has successfully received the chunk. As far as the
+   * *-Stream protocol is concerned, at this point any other activity is foreseen
+   * for the node that received such a message.<br>
+   * <b>Note:</b> since {@link ChunkMessage}s are sent over an unreliable transport,
+   * upon reception of a {@link ChunkOk} message it is necessary purging the memory
+   * of {@link ChunkMessage}s pending acks to avoid useless retransmissions.
    *
-   * @param chunkOk
+   * @param chunkOk The OK message
    */
   private void handleChunkOk(ChunkOk chunkOk) {
     log("[RCV] "+chunkOk);
+    removeFromPendingChunks(chunkOk);
   }
 
   /**
@@ -538,22 +611,16 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkRequest
    */
   private void handleChunkRequest(ChunkRequest chunkRequest) {
-    log("[RCV] "+chunkRequest);
-    Chunk<?> chunk = store.getChunk(chunkRequest.getSessionId(), chunkRequest.getChunkId());
-    if(chunk!=null) {
-      // the chunk is locally available, let's reply with a chunk message
-      ChunkMessage chunkMessage = chunkRequest.replyWithChunkMessage(chunk);
-      sendOverUnreliableTransport(chunkMessage);
-    } else {
-      ChunkMissing chunkMissing = chunkRequest.replyWithChunkMissing();
-      sendOverReliableTransport(chunkMissing);
-    }
+    tryAndSendChunk(chunkRequest);
   }
 
   /**
    * Reply to the node that just sent the input {@link ChunkMessage} with a
-   * {@link ChunkKo} message stating that the chunk has not been properly received.
-   * This message is sent over a reliable transport.
+   * {@link ChunkKo} message stating that the chunk has not been properly received.<br>
+   * <b>Note:</b> this message is sent over a reliable transport.<br>
+   * <b>Note:</b> according to the protocol specification, this message could be followed
+   * by a new {@link ChunkMessage} carrying the chunk that could have not been properly
+   * received.
    *
    * @param chunkMessage The message to reply to
    */
@@ -571,8 +638,10 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
 
   /**
    * Reply to the node that just sent the input {@link ChunkMessage} with a
-   * {@link ChunkOk} message stating that the chunk has been properly received.
-   * This message is sent over a reliable transport.
+   * {@link ChunkOk} message stating that the chunk has been properly received.<br>
+   * <b>Note:</b> this message is sent over a reliable transport.<br>
+   * <b>Note:</b> the protocol specifies this message must not be followed by anyother
+   * message.<br>
    *
    * @param chunkMessage The message to reply to
    */
@@ -611,11 +680,44 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * Adds the given {@link ChunkMessage} to the set of {@link ChunkMessage}s waiting
+   * for an ack.
+   * 
+   * @param chunkMessage The message
+   */
+  private void rememberPendingChunk(ChunkMessage chunkMessage) {
+    pendingChunkMessages.put(chunkMessage.getMessageId(), chunkMessage);
+  }
+
+  /**
+   * Removes the {@link ChunkMessage}, identified by the correlation-id found in the
+   * input message, from the set of {@link ChunkMessage}s waiting for an ack.
+   *
+   * @param msg The message
+   */
+  private void removeFromPendingChunks(StarStreamMessage msg) {
+    pendingChunkMessages.remove(msg.getCorrelationId());
+  }
+
+  /**
    * Randomly selects neighbors according to Pastry's <i>neighbor</i> definition.
    * @return Zero or more Pastry neighbors
    */
   private Set<StarStreamNode> selectOutNeighbors() {
     return pastryProtocol.getNeighbors(availableOutDeg());
+  }
+
+  /**
+   * When sending a {@link ChunkMessage} this method must be used to avoid
+   * unnecessary and dangerous code duplications.
+   *
+   * @param msg The message
+   */
+  private void sendChunkMessage(ChunkMessage msg) {
+    // send over unrel. transport
+    sendOverUnreliableTransport(msg);
+    // add to chunks waiting for ack
+    rememberPendingChunk(msg);
   }
 
   /**
@@ -635,7 +737,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param msg The message
    */
   private void sendOverUnreliableTransport(StarStreamMessage msg) {
-    Transport t = (Transport) owner.getStarStreamTransport();
+    Transport t = owner.getStarStreamTransport();
     t.send(msg.getSource(), msg.getDestination(), msg, owner.getStarStreamPid());
     log("[SND] "+msg);
   }
@@ -656,6 +758,32 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       // the chunk has not been added to the local store: this means it was
       // already there
       // NOP
+    }
+  }
+
+  /**
+   * Utility method useful upon reception of either a {@link ChunkRequest} or a
+   * {@link ChunkKo} message that:
+   * <ol>
+   * <li>checks whether the requested chunk is locally available or not</li>
+   * <li>if the chunk was available, reply with a {@link ChunkMessage} message;<br>
+   * if the chunk was not available, reply with a {@link ChunkMissing} message</li>
+   * </ol>
+   * <b>Note:</b> the {@link ChunkMessage} has to travel over the unreliable transport
+   * while the {@link ChunkMissing} has to travel over the reliable transpor.
+   *
+   * @param req The request for a chunk (retransmission)
+   */
+  private void tryAndSendChunk(ChunkRequest req) {
+    log("[RCV] "+req);
+    Chunk<?> chunk = store.getChunk(req.getSessionId(), req.getChunkId());
+    if(chunk!=null) {
+      // the chunk is locally available, let's reply with a chunk message
+      ChunkMessage chunkMessage = req.replyWithChunkMessage(chunk);
+      sendChunkMessage(chunkMessage);
+    } else {
+      ChunkMissing chunkMissing = req.replyWithChunkMissing();
+      sendOverReliableTransport(chunkMissing);
     }
   }
 }

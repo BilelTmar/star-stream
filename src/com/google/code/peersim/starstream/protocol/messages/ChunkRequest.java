@@ -60,6 +60,6 @@ public class ChunkRequest extends ChunkAdvertisement {
    * @return The {@link ChunkMessage} message
    */
   public ChunkMessage replyWithChunkMessage(Chunk<?> chunk) {
-    return new ChunkMessage(getDestination(), getSource(), chunk);
+    return new ChunkMessage(getDestination(), getSource(), chunk, 0);
   }
 }

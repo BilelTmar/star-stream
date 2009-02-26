@@ -298,7 +298,7 @@ public class StarStreamSource implements Control {
    */
   private void broadcast(Chunk<?> chunk, Set<StarStreamNode> nodes) {
     for(StarStreamNode node : nodes) {
-      ChunkMessage msg = new ChunkMessage(SOURCE_ADDR, node, chunk);
+      ChunkMessage msg = new ChunkMessage(SOURCE_ADDR, node, chunk, 0);
       send(msg, node);
     }
     // after the chunk has been broadcasted to the specified set of destination

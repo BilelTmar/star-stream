@@ -13,7 +13,7 @@ import java.util.UUID;
  * @version 0.1
  * @since 0.1
  */
-public class ChunkOk extends ChunkAdvertisement {
+public class ChunkOk extends ChunkKo {
 
   /**
    * Constructor. When creating a new instance, the specified source is also used to
@@ -23,9 +23,10 @@ public class ChunkOk extends ChunkAdvertisement {
    * @param dst The destination
    * @param sessionId The session ID
    * @param chunkId The chunk ID
+   * @param correlationId The correlation ID
    */
-  ChunkOk(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
-    super(src, dst, sessionId, chunkId);
+  ChunkOk(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId, UUID correlationId) {
+    super(src, dst, sessionId, chunkId, correlationId);
   }
 
   /**

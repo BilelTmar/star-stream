@@ -55,6 +55,14 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
   }
 
   /**
+   * Tells the *-Stream protocol to check for expired messages that were waiting
+   * for acks/nacks and behave consequently.
+   */
+  public void checkForStarStreamTimeouts() {
+    getStarStreamProtocol().checkForTimeouts();
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

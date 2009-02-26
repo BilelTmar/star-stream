@@ -6,6 +6,7 @@ package com.google.code.peersim.starstream.protocol.messages;
 
 import com.google.code.peersim.starstream.protocol.*;
 import java.util.UUID;
+import peersim.core.CommonState;
 
 /**
  * Base abstract class for all the *-stream messages. Every *-stream message has
@@ -151,6 +152,10 @@ public abstract class StarStreamMessage {
   }
 
   /**
+   * Identifier of the message this message is related to.
+   */
+  private UUID correlationId;
+  /**
    * The node that has to receive the message.
    */
   private StarStreamNode destination;
@@ -170,6 +175,10 @@ public abstract class StarStreamMessage {
    * The node the message has been received from.
    */
   private StarStreamNode source;
+  /**
+   * Message creation time.
+   */
+  private final long timeStamp;
 
   /**
    * Internal constructor useful for subclassess only.
@@ -183,6 +192,7 @@ public abstract class StarStreamMessage {
     this.destination = dst;
     messageId = UUID.randomUUID();
     hops = 0;
+    timeStamp = CommonState.getTime();
   }
 
   /**
@@ -225,16 +235,24 @@ public abstract class StarStreamMessage {
   public abstract Type getType();
 
   /**
-   * The node that has to receive the message
+   * Returns the message identifier of the message this message is related to.
+   * @return The correlated message identifier
+   */
+  public UUID getCorrelationId() {
+    return correlationId;
+  }
+
+  /**
+   * The node that has to receive the message.
    * @return The destination
    */
   public StarStreamNode getDestination() {
     return destination;
   }
 
-  public int getEstimantedBandwidth() {
-    return getType().getEstimatedBandwidth();
-  }
+//  public int getEstimantedBandwidth() {
+//    return getType().getEstimatedBandwidth();
+//  }
 
   /**
    * Returns the number of hops the message has travelled so far.
@@ -269,6 +287,14 @@ public abstract class StarStreamMessage {
   }
 
   /**
+   * The message creation time.
+   * @return The message creation time
+   */
+  public long getTimeStamp() {
+    return timeStamp;
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override
@@ -283,6 +309,14 @@ public abstract class StarStreamMessage {
    */
   protected void increaseHops() {
     hops++;
+  }
+
+  /**
+   * Sets the message identifier of the message this message is related to.
+   * @param cid The correlated message identifier
+   */
+  protected void setCorrelationId(UUID cid) {
+    this.correlationId = cid;
   }
 
   /**
