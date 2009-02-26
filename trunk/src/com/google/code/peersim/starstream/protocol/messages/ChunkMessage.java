@@ -24,6 +24,10 @@ public class ChunkMessage extends StarStreamMessage {
    * The chunk that has to be disseminated.
    */
   private Chunk chunk;
+  /**
+   * Number of retries.
+   */
+  private int retry;
 
   /**
    * Constructor. When creating a new instance, the specified source is also used to
@@ -32,11 +36,13 @@ public class ChunkMessage extends StarStreamMessage {
    * @param src The sender
    * @param dst The destination
    * @param chunk The chunk
+   * @param retry The retry time
    */
-  public ChunkMessage(StarStreamNode src, StarStreamNode dst, Chunk chunk) {
+  public ChunkMessage(StarStreamNode src, StarStreamNode dst, Chunk chunk, int retry) {
     super(src, dst);
     if(chunk==null) throw new IllegalArgumentException("The chunk cannot be 'null'");
     this.chunk = chunk;
+    this.retry = retry;
   }
 
   /**
@@ -76,11 +82,26 @@ public class ChunkMessage extends StarStreamMessage {
   }
 
   /**
+   * The current retry time.
+   * @return The current retry time
+   */
+  public int getRetry() {
+    return retry;
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override
   public Type getType() {
     return StarStreamMessage.Type.CHUNK;
+  }
+
+  /**
+   * Add one to the current retry value.
+   */
+  public void increaseRetry() {
+    retry++;
   }
 
   /**
@@ -100,7 +121,7 @@ public class ChunkMessage extends StarStreamMessage {
    * @return The {@link ChunkKo} message
    */
   public ChunkKo replyKo() {
-    return new ChunkKo(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId());
+    return new ChunkKo(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId(), getMessageId());
   }
 
   /**
@@ -110,7 +131,7 @@ public class ChunkMessage extends StarStreamMessage {
    * @return The {@link ChunkOk} message
    */
   public ChunkOk replyOk() {
-    return new ChunkOk(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId());
+    return new ChunkOk(getDestination(), getSource(), chunk.getSessionId(), chunk.getResourceId(), getMessageId());
   }
 
   /**
