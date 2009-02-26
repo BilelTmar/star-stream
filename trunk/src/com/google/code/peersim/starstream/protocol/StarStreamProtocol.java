@@ -207,7 +207,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   @Override
   public void joined(JoinedInfo info) {
-    log("[PASTRY-EVENT] "+info);
+      log("[PASTRY-EVENT] "+info);
   }
 
   /**
@@ -365,11 +365,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     for(UUID id : expired) {
       ChunkMessage msg = pendingChunkMessages.remove(id);
       if(msg!=null) {
+        log("[TIMEOUT] "+msg);
         // resend iff the retry-time has not reached the configured max amount yet
         if(msg.getRetry()<maxChunkRetries) {
           // resend
           msg.increaseRetry();
           sendChunkMessage(msg);
+        } else {
+          log("[NOT SENT] "+MAX_CHUNK_RETRIES+" reached");
         }
       }
     }
@@ -569,12 +572,22 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * A {@link StarStreamProtocol} instance can receive a {@link ChunkMissing} message
+   * only in response to a previously issued {@link ChunkRequest} message. Obviously,
+   * a {@link ChunkMissing} message reports that a requested chunk could not be provided
+   * by the inquired node. Should this happen, the protocol prescribes that the chunk
+   * must be searched for using the underlying {@link PastryProtocol} instance, issueing
+   * a {@link PastryProtocol#lookupResource(com.google.code.peersim.pastry.protocol.PastryId, int)}.
    *
-   * @param chunkMissing
+   * @param chunkMissing The message
    */
   private void handleChunkMissing(ChunkMissing chunkMissing) {
     log("[RCV] "+chunkMissing);
-    // TODO
+    // the only thing we need to do is launching a Pastry resource lookup operation
+    // once and if the resource is found, this protocol instance will be notified by
+    // the underlying Pastry implementation and the resource will be finally stored
+    // in the local *-Stream store
+    pastryProtocol.lookupResource(chunkMissing.getChunkId());
   }
 
   /**
