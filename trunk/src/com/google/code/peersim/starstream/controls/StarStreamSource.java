@@ -61,7 +61,11 @@ public class StarStreamSource implements Control {
    * Configurable number of nodes each new chunk must be sent to.
    */
   public static final String NODES_PER_CHUNK = "nodesPerChunk";
-  private static int nodesPerChunk;
+  private static int nodesPerChunk;/**
+   * Configurable number of nodes each new chunk must be sent to.
+   */
+  public static final String ELEGIBLE_NODE_RETRIES_PERCENTAGE = "elegibleNodeRetriesPercentage";
+  private static int elegibleNodeRetriesPercentage;
   /**
    * Total number of chunks the source has to produce and send.
    */
@@ -174,6 +178,7 @@ public class StarStreamSource implements Control {
     start = Configuration.getLong(prefix+"."+START_TIME);
     ackTimeout = Configuration.getInt(prefix+"."+CHUNK_ACK_TIMEOUT);
     doLog = Configuration.getBoolean(prefix+"."+DO_LOG);
+    elegibleNodeRetriesPercentage = Configuration.getInt(prefix+"."+ELEGIBLE_NODE_RETRIES_PERCENTAGE);
     if(doLog) {
       logFile = new FileNameGenerator(Configuration.getString(prefix + "."+LOG_FILE), ".log").nextCounterName();
       stream = new PrintStream(new FileOutputStream(logFile));
@@ -207,6 +212,32 @@ public class StarStreamSource implements Control {
       checkForExpiredTimeouts();
     }
     return stop;
+  }
+
+  /**
+   * Broadcasts the given {@link Chunk} to each node in {@code nodes}.
+   *
+   * @param chunk The chunk
+   * @param nodes The nodes
+   */
+  private void broadcast(Chunk<?> chunk, Set<StarStreamNode> nodes) {
+    for(StarStreamNode node : nodes) {
+      ChunkMessage msg = new ChunkMessage(SOURCE_ADDR, node, chunk, 0);
+      send(msg, node);
+    }
+    // after the chunk has been broadcasted to the specified set of destination
+    // nodes, a new chunk-descriptor has to be created and saved for later use
+    // (timeout-expiration checks & chunk retransmissions)
+    SentChunkDescriptor scd = new SentChunkDescriptor(chunk, nodes.size(), CommonState.getTime());
+    // the following write operation to the Map of sent chunks can overwrite a previously
+    // written chunk-descriptor: this can happen, and is legal, in case a chunk does not
+    // receive the full set of acks it is expected to within the configured time.
+    // In such a case the chunk is sent to the remaining number of nodes, and a new chunk
+    // descriptor has to be written into the Map a new timestamp (the current time).
+    // This happens with the following line of code since the new chunk descriptor carries
+    // the very same PastryId of the former one, and this ID is used as a key when putting
+    // the chunk descriptor into the Map
+    sentChunks.put(scd.chunk.getResourceId(), scd);
   }
 
   /**
@@ -256,17 +287,11 @@ public class StarStreamSource implements Control {
   }
 
   /**
-   * Selects <i>at most</i> {@code n} nodes and broadcasts each {@link Chunk}
-   * stored in {@code batch} to each selected node.
-   * 
-   * @param batch The chunks
-   * @param n How many nodes must receive each chunk
+   * Randomly selects a {@link StarStreamNode} in the network.
+   * @return A node
    */
-  private void spreadChunks(Set<Chunk<?>> batch, int n) {
-    for(Chunk<?> chunk : batch) {
-      Set<StarStreamNode> nodes = selectNodes(n);
-      broadcast(chunk, nodes);
-    }
+  private StarStreamNode randomNode() {
+    return (StarStreamNode) Network.get( CommonState.r.nextInt(Network.size()) );
   }
 
   /**
@@ -282,44 +307,18 @@ public class StarStreamSource implements Control {
       int tries = 0;
       StarStreamNode node = null;
       do {
-        node = randomJoinedNode();
+        node = randomNode();
         // TODO: make the next % configurable?
-      } while(!node.isJoined() && tries<(10*Network.size()/100));
+      } while(!node.isJoined() && tries<(elegibleNodeRetriesPercentage*Network.size()/100));
       nodes.add(node);
     }
     return nodes;
   }
 
   /**
-   * Broadcasts the given {@link Chunk} to each node in {@code nodes}.
-   *
-   * @param chunk The chunk
-   * @param nodes The nodes
-   */
-  private void broadcast(Chunk<?> chunk, Set<StarStreamNode> nodes) {
-    for(StarStreamNode node : nodes) {
-      ChunkMessage msg = new ChunkMessage(SOURCE_ADDR, node, chunk, 0);
-      send(msg, node);
-    }
-    // after the chunk has been broadcasted to the specified set of destination
-    // nodes, a new chunk-descriptor has to be created and saved for later use
-    // (timeout-expiration checks & chunk retransmissions)
-    SentChunkDescriptor scd = new SentChunkDescriptor(chunk, nodes.size(), CommonState.getTime());
-    // the following write operation to the Map of sent chunks can overwrite a previously
-    // written chunk-descriptor: this can happen, and is legal, in case a chunk does not
-    // receive the full set of acks it is expected to within the configured time.
-    // In such a case the chunk is sent to the remaining number of nodes, and a new chunk
-    // descriptor has to be written into the Map a new timestamp (the current time).
-    // This happens with the following line of code since the new chunk descriptor carries
-    // the very same PastryId of the former one, and this ID is used as a key when putting
-    // the chunk descriptor into the Map
-    sentChunks.put(scd.chunk.getResourceId(), scd);
-  }
-
-  /**
    * Sends the given message to the specified node, using the unreliable transport
    * associated with the *-Stream protocol.
-   * 
+   *
    * @param msg The message
    * @param node The node
    */
@@ -329,11 +328,17 @@ public class StarStreamSource implements Control {
   }
 
   /**
-   * Randomly selects a {@link StarStreamNode} in the network.
-   * @return A node
+   * Selects <i>at most</i> {@code n} nodes and broadcasts each {@link Chunk}
+   * stored in {@code batch} to each selected node.
+   * 
+   * @param batch The chunks
+   * @param n How many nodes must receive each chunk
    */
-  private StarStreamNode randomJoinedNode() {
-    return (StarStreamNode) Network.get( CommonState.r.nextInt(Network.size()) );
+  private void spreadChunks(Set<Chunk<?>> batch, int n) {
+    for(Chunk<?> chunk : batch) {
+      Set<StarStreamNode> nodes = selectNodes(n);
+      broadcast(chunk, nodes);
+    }
   }
 
   /**
