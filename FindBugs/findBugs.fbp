@@ -1,0 +1,11 @@
+<Project filename="&lt;&lt;unnamed project&gt;&gt;" projectName="*-Stream">
+  <Jar>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/dist/Star-Stream.jar</Jar>
+  <AuxClasspathEntry>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/lib/djep-1.0.0.jar</AuxClasspathEntry>
+  <AuxClasspathEntry>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/lib/jep-2.3.0.jar</AuxClasspathEntry>
+  <AuxClasspathEntry>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/lib/P4PS.jar</AuxClasspathEntry>
+  <AuxClasspathEntry>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/lib/peersim-1.0.4.jar</AuxClasspathEntry>
+  <SrcDir>/Users/frusso/MyFolders/Projects/P2P/Thesis/Star-Stream/src</SrcDir>
+  <SuppressionFilter>
+    <LastVersion value="-1" relOp="NEQ"/>
+  </SuppressionFilter>
+</Project>

@@ -56,50 +56,50 @@ public class StarStreamSource implements Control {
    * Configurable number of chunks that must be produced per simulated-time unit.
    */
   public static final String CHUNKS_PER_TIME_UNIT = "chunksPerTimeUnit";
-  private static int chunksPerTimeUnit;
+  private int chunksPerTimeUnit;
   /**
    * Configurable number of nodes each new chunk must be sent to.
    */
   public static final String NODES_PER_CHUNK = "nodesPerChunk";
-  private static int nodesPerChunk;/**
+  private int nodesPerChunk;/**
    * Configurable number of nodes each new chunk must be sent to.
    */
   public static final String ELEGIBLE_NODE_RETRIES_PERCENTAGE = "elegibleNodeRetriesPercentage";
-  private static int elegibleNodeRetriesPercentage;
+  private int elegibleNodeRetriesPercentage;
   /**
    * Total number of chunks the source has to produce and send.
    */
   public static final String CHUNKS = "chunks";
-  private static int chunks;
+  private int chunks;
   /**
    * Configurable simulated-time starting from which the source can begin producing and sending chunks.
    */
   public static final String START_TIME = "start";
-  private static long start;
+  private long start;
   /**
    * Configurable simulated-time units before an ack for a sent {@link ChunkMessage} must be received before
    * resending that chunk to another randomly choosen node.
    */
   public static final String CHUNK_ACK_TIMEOUT = "ackTimeout";
-  private static int ackTimeout;
+  private int ackTimeout;
   /**
    * The log file to log to.
    */
   public static final String LOG_FILE = "log";
-  private static String logFile;
+  private String logFile;
   /**
    * Whether to log or not.
    */
   public static final String DO_LOG = "doLog";
-  private static boolean doLog;
+  private boolean doLog;
   /**
    * The stream to the log file.
    */
-  private static PrintStream stream;
+  private PrintStream stream;
   /**
    * Whether this control class is active or not.
    */
-  private static boolean enabled = true;
+  private boolean enabled = true;
   /**
    * Counter of the chunks that have been created so far.
    */
@@ -149,20 +149,6 @@ public class StarStreamSource implements Control {
       // structure: this is a really bad thing!
       throw new IllegalStateException("BAD BAD THING: received a chunk ID "+chunkId+" the source does not know!");
     }
-  }
-
-  /**
-   * Enables the component.
-   */
-  public static void enable() {
-    enabled = true;
-  }
-
-  /**
-   * Disables the component.
-   */
-  public static void disable() {
-    enabled = false;
   }
 
   /**
@@ -252,7 +238,7 @@ public class StarStreamSource implements Control {
     for(Map.Entry<PastryId,SentChunkDescriptor> entry : sentChunks.entrySet()) {
       batch.clear();
       SentChunkDescriptor scd = entry.getValue();
-      if(scd.isPending() && (scd.isExpired())) {
+      if(scd.isPending() && (scd.isExpired(ackTimeout))) {
         batch.add(scd.chunk);
         spreadChunks(batch, scd.getRemainingAcks());
       }
@@ -393,12 +379,12 @@ public class StarStreamSource implements Control {
       return nodes - receivedAcks;
     }
 
-    private boolean isPending() {
-      return nodes > receivedAcks;
+    private boolean isExpired(long timeout) {
+      return timestamp+timeout < CommonState.getTime();
     }
 
-    private boolean isExpired() {
-      return timestamp+StarStreamSource.ackTimeout < CommonState.getTime();
+    private boolean isPending() {
+      return nodes > receivedAcks;
     }
   }
 }

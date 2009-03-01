@@ -32,7 +32,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
   /**
    * The protocol identifier assigned to the *-Stream protocol by the PeerSim runtime.
    */
-  private static int STAR_STREAM_PID;
+  private int STAR_STREAM_PID;
   /**
    * Separator char used for PeersSim-related configuration properties.
    */
