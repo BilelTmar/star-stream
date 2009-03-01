@@ -20,6 +20,8 @@ import java.util.UUID;
  */
 public class ChunkRequest extends ChunkAdvertisement {
 
+  private int retry = 0;
+
   /**
    * Constructor
    *
@@ -28,8 +30,12 @@ public class ChunkRequest extends ChunkAdvertisement {
    * @param sessionId The session ID
    * @param chunkId The chunk ID
    */
-  protected ChunkRequest(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+  public ChunkRequest(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
     super(src, dst, sessionId, chunkId);
+  }
+
+  public int getRetry() {
+    return retry;
   }
 
   /**
@@ -40,6 +46,10 @@ public class ChunkRequest extends ChunkAdvertisement {
     return StarStreamMessage.Type.CHUNK_REQ;
   }
 
+  public void increaseRetry() {
+    retry++;
+  }
+
   /**
    * If a node that receives a {@link ChunkRequest} is not able to provide the
    * inquiring node with the requested chunk, this method must be used to create
@@ -48,7 +58,7 @@ public class ChunkRequest extends ChunkAdvertisement {
    * @return The {@link ChunkMissing} message
    */
   public ChunkMissing replyWithChunkMissing() {
-    return new ChunkMissing(getDestination(), getSource(), getSessionId(), getChunkId());
+    return new ChunkMissing(getDestination(), getSource(), getSessionId(), getChunkId(), getMessageId());
   }
 
   /**
@@ -60,6 +70,6 @@ public class ChunkRequest extends ChunkAdvertisement {
    * @return The {@link ChunkMessage} message
    */
   public ChunkMessage replyWithChunkMessage(Chunk<?> chunk) {
-    return new ChunkMessage(getDestination(), getSource(), chunk, 0);
+    return new ChunkMessage(getDestination(), getSource(), chunk, 0, getMessageId());
   }
 }

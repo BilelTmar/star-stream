@@ -10,6 +10,7 @@ import com.google.code.peersim.starstream.controls.ChunkUtils.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * This message is used to disseminate a new chunk into the network.
@@ -43,6 +44,22 @@ public class ChunkMessage extends StarStreamMessage {
     if(chunk==null) throw new IllegalArgumentException("The chunk cannot be 'null'");
     this.chunk = chunk;
     this.retry = retry;
+  }
+
+  /**
+   * 
+   * @param src
+   * @param dst
+   * @param chunk
+   * @param retry
+   * @param correlationId
+   */
+  ChunkMessage(StarStreamNode src, StarStreamNode dst, Chunk chunk, int retry, UUID correlationId) {
+    super(src, dst);
+    if(chunk==null) throw new IllegalArgumentException("The chunk cannot be 'null'");
+    this.chunk = chunk;
+    this.retry = retry;
+    this.setCorrelationId(correlationId);
   }
 
   /**

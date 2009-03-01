@@ -59,7 +59,8 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    * for acks/nacks and behave consequently.
    */
   public void checkForStarStreamTimeouts() {
-    getStarStreamProtocol().checkForTimeouts();
+    if(isUp())
+      getStarStreamProtocol().checkForTimeouts();
   }
 
   /**
@@ -98,6 +99,23 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   public StarStreamStore getStore() {
     return getStarStreamProtocol().getStore();
+  }
+
+  /**
+   * Tells the node to start processing potentially delayed messages.
+   */
+  public void processDelayedMessages() {
+    if(isUp())
+      getStarStreamProtocol().processDelayedMessages();
+  }
+
+  /**
+   * Tells the associated {@link StarStreamProtocol} instance that there has been
+   * a new simulated-time tick and that both the outbound and inbound bandwiths
+   * can be reset to their original levels.
+   */
+  public void resetUsedBandwidth() {
+    getStarStreamProtocol().resetUsedBandwidth();
   }
 
   /**

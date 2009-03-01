@@ -19,12 +19,14 @@ import peersim.core.CommonState;
  * </ol>
  * Every concrete message class must also provide methods for replying to the current
  * message with another message, according to what the protocol prescribes.
+ * <br><br>
+ * <b>Note:</b> this class has a natural ordering that is inconsistent with equals.
  *
  * @author frusso
  * @version 0.1
  * @since 0.1
  */
-public abstract class StarStreamMessage {
+public abstract class StarStreamMessage implements Comparable<StarStreamMessage> {
 
   /**
    * Classification of *-stream message types.
@@ -44,7 +46,15 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        throw new UnsupportedOperationException();
+        return 1024 + 180*8;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 6;
       }
     },
     /**
@@ -58,10 +68,15 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        // since a chunk_ok typically brings only a pastry-identifier
-        // (which is a 128 bit long string), this message will presumably consume
-        // something link 248 bits
-        return 248;
+        return 1024;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 5;
       }
     },
     /**
@@ -75,10 +90,15 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        // since a chunk_ko typically brings only a pastry-identifier
-        // (which is a 128 bit long string), this message will presumably consume
-        // something link 248 bits
-        return 248;
+        return 1024;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 4;
       }
     },
     /**
@@ -93,10 +113,15 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        // since a chunk advertisement typically brings only a pastry-identifier
-        // (which is a 128 bit long string), this message will presumably consume
-        // something link 248 bits
-        return 248;
+        return 1024;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 3;
       }
     },
     /**
@@ -110,10 +135,15 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        // since a chunk_req typically brings only a pastry-identifier
-        // (which is a 128 bit long string), this message will presumably consume
-        // something link 248 bits
-        return 248;
+        return 1024;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 2;
       }
     },
     /**
@@ -127,20 +157,32 @@ public abstract class StarStreamMessage {
        */
       @Override
       public int getEstimatedBandwidth() {
-        // since a chunk_missing typically brings only a pastry-identifier
-        // (which is a 128 bit long string), this message will presumably consume
-        // something link 248 bits
-        return 248;
+        return 1024;
+      }
+
+      /**
+       * {@inheritDoc}
+       */
+      @Override
+      public int getPriority() {
+        return 1;
       }
     };
 
     /**
-     * Returns the estimated number of kbits required by the given network
-     * operation.
+     * Returns the estimated weight of the message in terms of bits.
      *
      * @return The estimated number of kbits
      */
     public abstract int getEstimatedBandwidth();
+
+    /**
+     * Returns the message type priority as far as the processing of delayed messages
+     * by {@link StarStreamProtocol} instances is concerned.
+     *
+     * @return The message type priority
+     */
+    public abstract int getPriority();
 
     /**
      * Returns a human-readable description of the message type.
@@ -152,31 +194,31 @@ public abstract class StarStreamMessage {
   }
 
   /**
-   * Identifier of the message this message is related to.
+   * Identifier of the message this message is related to. 128
    */
   private UUID correlationId;
   /**
-   * The node that has to receive the message.
+   * The node that has to receive the message. 128
    */
   private StarStreamNode destination;
   /**
-   * The number of hops the message has travelled.
+   * The number of hops the message has travelled. 64
    */
   private int hops;
   /**
-   * Unique message identifier.
+   * Unique message identifier. 128
    */
   private UUID messageId;
   /**
-   * The node that originally sent the message for first.
+   * The node that originally sent the message for first. 128
    */
   private StarStreamNode originator;
   /**
-   * The node the message has been received from.
+   * The node the message has been received from. 128
    */
   private StarStreamNode source;
   /**
-   * Message creation time.
+   * Message creation time. 128
    */
   private final long timeStamp;
 
@@ -193,6 +235,26 @@ public abstract class StarStreamMessage {
     messageId = UUID.randomUUID();
     hops = 0;
     timeStamp = CommonState.getTime();
+  }
+
+  /**
+   * <b>Note:</b> this class has a natural ordering that is inconsistent with equals.
+   * <br<br>
+   * A {@link StarStreamMessage} is compared to another one considering firstly the
+   * values of {@link Type#getPriority()}. If the two messages expose the same type,
+   * they are compared considering their {@link StarStreamMessage#getTimeStamp()}
+   * values.
+   * <br<br>
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(StarStreamMessage o) {
+    int res = 0;
+    res = this.getType().getPriority() - o.getType().getPriority();
+    if(res==0) {
+      res = (int) (this.getTimeStamp() - o.getTimeStamp());
+    }
+    return res;
   }
 
   /**
