@@ -104,6 +104,29 @@ public class ChunkUtils {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object other) {
+      if(!(other instanceof Chunk))
+        return false;
+      Chunk<?> otherChunk = (Chunk<?>) other;
+      return super.equals(other) && sequenceId==otherChunk.sequenceId && sessionId.equals(otherChunk.sessionId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+      int hash = 5;
+      hash = 89 * hash + (this.sessionId != null ? this.sessionId.hashCode() : 0);
+      hash = 89 * hash + this.sequenceId;
+      hash = 89 * hash + super.hashCode();
+      return hash;
+    }
+
+    /**
      * Returns the sequence number associated with this chunk of data.
      * @return The sequence number
      */

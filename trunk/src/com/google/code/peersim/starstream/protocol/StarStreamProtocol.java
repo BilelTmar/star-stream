@@ -55,7 +55,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Timeout value for *-Stream messages.
    */
-  private static int msgTimeout;
+  private int msgTimeout;
   /**
    * Configurable size for the *-Stream Store.
    */
@@ -63,7 +63,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Size for the *-Stream Store.
    */
-  private static int starStoreSize;
+  private int starStoreSize;
   /**
    * Whether messages should be corruptable or not.
    */
@@ -71,7 +71,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Whether messages should be corruptable or not.
    */
-  private static boolean curruptedMessages;
+  private boolean curruptedMessages;
   /**
    * Whether messages should be corruptable or not. Legal values are in [0..1].
    */
@@ -79,7 +79,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Whether messages should be corruptable or not.
    */
-  private static float curruptedMessagesProbability;
+  private float curruptedMessagesProbability;
   /**
    * How many simulation-time units a chunk can persist in the *-Stream Store before
    * it is removed to make room for other chunks.
@@ -89,7 +89,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * How many simulation-time units a chunk can persist in the *-Stream Store before
    * it is removed to make room for other chunks.
    */
-  private static int chunkExpiration;
+  private int chunkExpiration;
   /**
    * How many simulation-time units a node should try and send a chunk to another one.
    */
@@ -97,7 +97,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * How many simulation-time units a node should try and send a chunk to another one.
    */
-  private static int maxChunkRetries;
+  private int maxChunkRetries;
   /**
    * Reliable transport protocol for *-Stream.
    */
@@ -105,7 +105,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * The protocol id assigned by the PeerSim runtime to the reliable transport instance.
    */
-  private static int reliableTransportPid;
+  private int reliableTransportPid;
   /**
    * Pastry protocol for *-Stream.
    */
@@ -121,15 +121,11 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Whether the protocol should log its activity or not.
    */
-  private static boolean doLog;
+  private boolean doLog;
   /**
    * PeerSim property separator char.
    */
   private static final String SEPARATOR = ".";
-  /**
-   * Configuration prefix.
-   */
-  private static String prefix;
   /**
    * This reference to the node associated with the current protocol instance.
    */
@@ -166,7 +162,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
 
   private int usedDownStream = 0;
   private int usedUpStream = 0;
-  private int lastTimeTick = 0;
 
   private SortedSet<StarStreamMessage> delayedInMessages = new TreeSet<StarStreamMessage>();
   private SortedSet<StarStreamMessage> delayedOutMessages = new TreeSet<StarStreamMessage>();
@@ -178,7 +173,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param prefix The configuration prefix
    */
   public StarStreamProtocol(String prefix) throws FileNotFoundException {
-    StarStreamProtocol.prefix = prefix;
     msgTimeout = Configuration.getInt(prefix+SEPARATOR+MSG_TIMEOUT);
     starStoreSize = Configuration.getInt(prefix+SEPARATOR+STAR_STORE_SIZE);
     reliableTransportPid = Configuration.getPid(prefix+SEPARATOR+REL_TRANSPORT);
@@ -208,9 +202,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       ((StarStreamProtocol)clone).store = new StarStreamStore();
       ((StarStreamProtocol)clone).listeners = new ArrayList<StarStreamProtocolListenerIfc>();
       ((StarStreamProtocol)clone).pendingChunkMessages = new HashMap<UUID, ChunkMessage>();
+      ((StarStreamProtocol)clone).pendingChunkRequests = new HashMap<UUID, ChunkRequest>();
       ((StarStreamProtocol)clone).usedDownStream = 0;
       ((StarStreamProtocol)clone).usedUpStream = 0;
-      ((StarStreamProtocol)clone).lastTimeTick = 0;
       ((StarStreamProtocol)clone).delayedInMessages = new TreeSet<StarStreamMessage>();
       ((StarStreamProtocol)clone).delayedOutMessages = new TreeSet<StarStreamMessage>();
       return clone;
@@ -648,8 +642,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private boolean checkMessageIntegrity(ChunkMessage chunkMsg) {
     boolean res;
-    if(StarStreamProtocol.curruptedMessages) {
-      res = CommonState.r.nextFloat() < StarStreamProtocol.curruptedMessagesProbability;
+    if(curruptedMessages) {
+      res = CommonState.r.nextFloat() < curruptedMessagesProbability;
     } else {
       res = true;
     }
@@ -990,7 +984,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private boolean sendOverReliableTransport(StarStreamMessage msg) {
     boolean sent = false;
     if(updateUsedUpStream(msg)) {
-      Transport t = (Transport) owner.getProtocol(StarStreamProtocol.reliableTransportPid);
+      Transport t = (Transport) owner.getProtocol(reliableTransportPid);
       t.send(msg.getSource(), msg.getDestination(), msg, owner.getStarStreamPid());
       log("[SND] "+msg);
       sent = true;
