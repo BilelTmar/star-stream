@@ -28,9 +28,11 @@ public class ChunkMissing extends ChunkAdvertisement {
    * @param dst The destination
    * @param sessionId The sessionID
    * @param chunkId The chunk ID
+   * @param correlationId The {@link ChunkRequest} message ID
    */
-  ChunkMissing(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId) {
+  ChunkMissing(StarStreamNode src, StarStreamNode dst, UUID sessionId, PastryId chunkId, UUID correlationId) {
     super(src, dst, sessionId, chunkId);
+    setCorrelationId(correlationId);
   }
 
   /**
