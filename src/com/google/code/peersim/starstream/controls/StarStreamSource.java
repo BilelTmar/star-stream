@@ -152,6 +152,14 @@ public class StarStreamSource implements Control {
   }
 
   /**
+   * Returns the *-Stream streaming session id.
+   * @return The *-Stream streaming session id
+   */
+  public static UUID getStarStreamSessionId() {
+    return SESSION_ID;
+  }
+
+  /**
    * Constructor.
    *
    * @param prefix PeerSim prefix

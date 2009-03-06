@@ -19,7 +19,7 @@ public interface StarStreamProtocolListenerIfc {
 
   /**
    * This method is invoked whenever a new chunk is saved in the *-Stream local
-   * store.
+   * store, either if the chunk arrived via *-Stream or via Pastry.
    *
    * @param chunk The new chunk that has been just stored
    */

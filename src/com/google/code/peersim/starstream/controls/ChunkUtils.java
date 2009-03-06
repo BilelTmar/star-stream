@@ -2,7 +2,9 @@ package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.pastry.protocol.PastryResource;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,6 +27,19 @@ public class ChunkUtils {
    * identifier, that is a {@link PastryId}.
    */
   private static Map<UUID, Map<Integer, PastryId>> chunkIds = new HashMap<UUID, Map<Integer, PastryId>>();
+
+  public static List<PastryId> getChunkIdsForSequenceIds(UUID sessionId, List<Integer> seqIds) {
+    List<PastryId> pids = new ArrayList<PastryId>();
+    Map<Integer, PastryId> chunks = chunkIds.get(sessionId);
+    if(chunks!=null) {
+      for(int id : seqIds) {
+        PastryId pid = chunks.get(id);
+        if(pid!=null)
+          pids.add(pid);
+      }
+    }
+    return pids;
+  }
 
   /**
    * Factory method.
@@ -86,7 +101,7 @@ public class ChunkUtils {
    * @version 0.1
    * @since 0.1
    */
-  public static class Chunk<T> extends PastryResource<T> {
+  public static class Chunk<T> extends PastryResource<T> implements Comparable<Chunk<?>> {
 
     private final UUID sessionId;
     private final int sequenceId;
@@ -101,6 +116,26 @@ public class ChunkUtils {
       super(chunk);
       sessionId = sid;
       sequenceId = seq;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int compareTo(Chunk<?> other) {
+      int res = 0;
+      // if this and other actually differ...
+      if(!this.equals(other)) {
+        // if their session ids equal...
+        if(sessionId.equals(other.sessionId)) {
+          // leverage the sequence number
+          res = sequenceId-other.sequenceId;
+        } else {
+          // otherwise simply compare the two session ids
+          res = sessionId.compareTo(other.sessionId);
+        }
+      }
+      return res;
     }
 
     /**

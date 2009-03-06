@@ -28,6 +28,15 @@ public class StarStreamStore {
   private Map<UUID, Map<PastryId,Chunk<?>>> store;
 
   /**
+   * Tells how many chunks are stored.
+   *
+   * @return The number of stored chunks
+   */
+  public int size() {
+    return store.size();
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

@@ -9,6 +9,8 @@ import com.google.code.peersim.starstream.protocol.StarStreamStore;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.Map;
 import peersim.config.Configuration;
 import peersim.core.CommonState;
 import peersim.core.Control;
@@ -82,11 +84,22 @@ public class StarStreamStoreObserver implements Control {
    * Dumps down to the log file.
    */
   private void dump() {
+    Map<Integer,Integer> nodesPerStoreSize = new HashMap<Integer,Integer>();
     System.err.print("Dumping *-Stream stores to file " + logFile + "... ");
     int dim = Network.size();
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
-      log(node.toString());
+      //log(node.toString());
+      int storeSize = node.getStore().size();
+      Integer nodes = nodesPerStoreSize.get(storeSize);
+      if(nodes==null) {
+        nodes = 0;
+      }
+      nodes++;
+      nodesPerStoreSize.put(storeSize, nodes);
+    }
+    for(Map.Entry<Integer,Integer> entry : nodesPerStoreSize.entrySet()) {
+      log(entry.getKey()+" chunk(s) in "+entry.getValue()+" node(s)");
     }
     System.err.print("done!\n\n");
   }
