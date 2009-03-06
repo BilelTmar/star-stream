@@ -205,6 +205,8 @@ public abstract class StarStreamMessage implements Comparable<StarStreamMessage>
    * The number of hops the message has travelled. 64
    */
   private int hops;
+
+  private int retries;
   /**
    * Unique message identifier. 128
    */
@@ -220,7 +222,7 @@ public abstract class StarStreamMessage implements Comparable<StarStreamMessage>
   /**
    * Message creation time. 128
    */
-  private final long timeStamp;
+  private long timeStamp;
 
   /**
    * Internal constructor useful for subclassess only.
@@ -234,6 +236,7 @@ public abstract class StarStreamMessage implements Comparable<StarStreamMessage>
     this.destination = dst;
     messageId = UUID.randomUUID();
     hops = 0;
+    retries = 0;
     timeStamp = CommonState.getTime();
   }
 
@@ -356,6 +359,27 @@ public abstract class StarStreamMessage implements Comparable<StarStreamMessage>
     return timeStamp;
   }
 
+  public void prepareForRetry() {
+    increaseHops();
+    increaseRetries();
+    setTimeStamp(CommonState.getTime());
+  }
+
+  /**
+   * The current retry time.
+   * @return The current retry time
+   */
+  public int getRetries() {
+    return retries;
+  }
+
+  /**
+   * Add one to the current retry value.
+   */
+  public void increaseRetries() {
+    retries++;
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -403,5 +427,9 @@ public abstract class StarStreamMessage implements Comparable<StarStreamMessage>
    */
   protected void setSource(StarStreamNode source) {
     this.source = source;
+  }
+
+  protected void setTimeStamp(long time) {
+    this.timeStamp = time;
   }
 }
