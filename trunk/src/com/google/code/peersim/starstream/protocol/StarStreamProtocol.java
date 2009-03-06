@@ -266,22 +266,18 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
         // if the index is valid we try and process the message
         StarStreamMessage msg = inMsgs[i];
         if(updateUsedDownStream(msg)) {
+          removeFromDelayedInMessages(msg);
           // since there is enough bandwidth we process the message
           processEvent(msg);
-          // and remove it from the cached ones
-          removeFromDelayedInMessages(msg);
+          
         }
       }
       // ... and from the outs
       if(i<outMsgs.length) {
         // if the index is valid we try and process the message
         StarStreamMessage msg = outMsgs[i];
-        if(send(msg)) {
-          // Note: the previous send method takes care of updating the used outgoing
-          // bandwidth and the message is sent iff there is enough!
-          // since the message has been sent, we remove it from the cached ones
-          removeFromDelayedOutMessages(msg);
-        }
+        removeFromDelayedOutMessages(msg);
+        send(msg);
       }
       log("[DELAYED MESSAGES] end");
     }
@@ -493,9 +489,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       if(msg!=null) {
         log("[TIMEOUT] "+msg);
         if(!getStore().isStored(msg.getSessionId(), msg.getChunkId())) {
-          // the requested chunk is not yet in the *-Store...
-          // let's perform a Pastry lookup
-          owner.getPastryProtocol().lookupResource(msg.getChunkId());
+            owner.getPastryProtocol().lookupResource(msg.getChunkId());
         } else {
           // the requested chunk is in the *-Store...
           // NOP
@@ -547,7 +541,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       StarStreamNode dst = nodes.iterator().next();
       ChunkRequest req = new ChunkRequest(owner, dst, starStreamSessionId, chunkId);
       if(send(req)) {
-        // cache for on timeout expiration retries
+        // cache for on-timeout expiration retries
         rememberPendingChunkRequest(req);
       } else {
         // the message could not be sent due to bandwidth unavailabilty
@@ -587,6 +581,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * {@code isOnPastryEvent} is {@link Boolean#TRUE}
    */
   private void advertiseChunk(ChunkMessage msg, boolean isOnPastryEvent, Chunk<?> chunk) {
+//    Set<StarStreamNode> neighbors = selectInNeighbors(StarStreamMessage.Type.CHUNK);
     Set<StarStreamNode> neighbors = selectOutNeighbors(StarStreamMessage.Type.CHUNK_ADV);
     List<ChunkAdvertisement> advs = null;
     if(isOnPastryEvent) {
@@ -673,6 +668,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private void handleChunk(ChunkMessage chunkMessage) {
     log("[RCV] "+chunkMessage);
     if(checkMessageIntegrity(chunkMessage)) {
+      // remove from the pending requests
+      removeFromPendingChunkRequests(chunkMessage);
       // send OK and proceede
       handleChunk_SendOK(chunkMessage);
       // locally save the chunk
@@ -758,11 +755,11 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunkMissing(ChunkMissing chunkMissing) {
     log("[RCV] "+chunkMissing);
-    removeFromPendingChunkRequests(chunkMissing);
     // the only thing we need to do is launching a Pastry resource lookup operation
     // once and if the resource is found, this protocol instance will be notified by
     // the underlying Pastry implementation and the resource will be finally stored
     // in the local *-Stream store
+    removeFromPendingChunkRequests(chunkMissing);
     pastryProtocol.lookupResource(chunkMissing.getChunkId());
   }
 
@@ -938,6 +935,17 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
+   * Randomly selects neighbors according to Pastry's <i>neighbor</i> definition.
+   *
+   * @param type The type of the message(s) the protocol would like to send
+   * @return Zero or more Pastry neighbors
+   */
+  private Set<StarStreamNode> selectInNeighbors(StarStreamMessage.Type type) {
+    int availableInConnections = availableInDeg(type);
+    return pastryProtocol.getNeighbors(availableInConnections);
+  }
+
+  /**
    * Generic send method that must be used in place of anyother {@code sendXxx} method.
    *
    * @param msg The message
@@ -1070,12 +1078,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * {@link Boolean#TRUE} otherwise
    */
   private boolean updateUsedDownStream(StarStreamMessage msg) {
-    boolean proceed = false;
-    if(usedDownStream+msg.getType().getEstimatedBandwidth()<=downStream) {
-      usedDownStream+=msg.getType().getEstimatedBandwidth();
-      proceed = true;
-    }
-    return proceed;
+//    boolean proceed = false;
+//    if(usedDownStream+msg.getType().getEstimatedBandwidth()<=downStream) {
+//      usedDownStream+=msg.getType().getEstimatedBandwidth();
+//      proceed = true;
+//    }
+//    return proceed;
+    return true;
   }
 
   /**
@@ -1088,11 +1097,12 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * {@link Boolean#TRUE} otherwise
    */
   private boolean updateUsedUpStream(StarStreamMessage msg) {
-    boolean proceed = false;
-    if(usedUpStream+msg.getType().getEstimatedBandwidth()<=upStream) {
-      usedUpStream+=msg.getType().getEstimatedBandwidth();
-      proceed = true;
-    }
-    return proceed;
+//    boolean proceed = false;
+//    if(usedUpStream+msg.getType().getEstimatedBandwidth()<=upStream) {
+//      usedUpStream+=msg.getType().getEstimatedBandwidth();
+//      proceed = true;
+//    }
+//    return proceed;
+    return true;
   }
 }

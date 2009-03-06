@@ -40,6 +40,7 @@ public class StarStreamTimeoutTrigger implements Control {
     for(int i=0; i<size; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       node.checkForStarStreamTimeouts();
+      node.checkForStartStreamingTimeout();
     }
     return stop;
   }
