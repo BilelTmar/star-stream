@@ -458,12 +458,12 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       if(msg!=null) {
         log("[TIMEOUT] "+msg);
         // resend iff the retry-time has not reached the configured max amount yet
-        if(msg.getRetry()<maxChunkRetries) {
+        if(msg.getRetries()<maxChunkRetries) {
           // resend
-          msg.increaseRetry();
+          msg.prepareForRetry();
           send(msg);
         } else {
-          log("[NOT SENT] "+MAX_CHUNK_RETRIES+" reached");
+          log("[NOT SENT] "+MAX_CHUNK_RETRIES+" "+maxChunkRetries+" reached");
         }
       }
     }
@@ -488,12 +488,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       ChunkRequest msg = pendingChunkRequests.remove(id);
       if(msg!=null) {
         log("[TIMEOUT] "+msg);
-        if(!getStore().isStored(msg.getSessionId(), msg.getChunkId())) {
-            owner.getPastryProtocol().lookupResource(msg.getChunkId());
-        } else {
-          // the requested chunk is in the *-Store...
-          // NOP
-        }
+        // NOTE: there is no need to check whether the chuunk has already been
+        // received since this is done by the method we are going to invoke
+        owner.lookupResource(msg.getChunkId());
       }
     }
   }
@@ -629,7 +626,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   }
 
   /**
-   * Tells whether the message can be consumed or not. This is state basing on
+   * Tells whether the message can be consumed or not. This is stated basing on
    * the {@link StarStreamProtocol#curruptedMessagesProbability} configured value.
    *
    * @param chunkMsg
