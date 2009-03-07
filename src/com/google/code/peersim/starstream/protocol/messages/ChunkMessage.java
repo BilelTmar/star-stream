@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import peersim.core.CommonState;
 
 /**
  * This message is used to disseminate a new chunk into the network.
@@ -98,6 +99,10 @@ public class ChunkMessage extends StarStreamMessage {
   @Override
   public Type getType() {
     return StarStreamMessage.Type.CHUNK;
+  }
+
+  public boolean isExpired() {
+    return getChunk().isExpired();
   }
 
   /**
