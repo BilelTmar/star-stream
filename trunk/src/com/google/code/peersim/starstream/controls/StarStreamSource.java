@@ -71,6 +71,9 @@ public class StarStreamSource implements Control {
    */
   public static final String CHUNKS = "chunks";
   private int chunks;
+
+  public static final String TTL = "ttl";
+  private int ttl;
   /**
    * Configurable simulated-time starting from which the source can begin producing and sending chunks.
    */
@@ -171,6 +174,7 @@ public class StarStreamSource implements Control {
     chunks = Configuration.getInt(prefix+"."+CHUNKS);
     start = Configuration.getLong(prefix+"."+START_TIME);
     ackTimeout = Configuration.getInt(prefix+"."+CHUNK_ACK_TIMEOUT);
+    ttl = Configuration.getInt(prefix+"."+TTL);
     doLog = Configuration.getBoolean(prefix+"."+DO_LOG);
     elegibleNodeRetriesPercentage = Configuration.getInt(prefix+"."+ELEGIBLE_NODE_RETRIES_PERCENTAGE);
     if(doLog) {
@@ -273,7 +277,7 @@ public class StarStreamSource implements Control {
     Set<Chunk<?>> batch = new HashSet<Chunk<?>>();
     for(int i=0; i<n; i++) {
       if(createdChunksCounter<chunks) {
-        Chunk<String> chunk = ChunkUtils.<String>createChunk(String.valueOf(createdChunksCounter),sessionId,createdChunksCounter++);
+        Chunk<String> chunk = ChunkUtils.<String>createChunk(String.valueOf(createdChunksCounter),sessionId,createdChunksCounter++,ttl);
         batch.add(chunk);
       }
     }

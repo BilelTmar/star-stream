@@ -7,7 +7,9 @@ package com.google.code.peersim.starstream.protocol;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +28,7 @@ public class StarStreamStore {
    * Internal representation of the store.
    */
   private Map<UUID, Map<PastryId,Chunk<?>>> store;
+  private int maxSize;
 
   /**
    * Tells how many chunks are stored.
@@ -33,7 +36,11 @@ public class StarStreamStore {
    * @return The number of stored chunks
    */
   public int size() {
-    return store.size();
+    int size = 0;
+    for(Map.Entry<UUID,Map<PastryId,Chunk<?>>> entry : store.entrySet()) {
+      size += entry.getValue().size();
+    }
+    return size;
   }
 
   /**
@@ -59,8 +66,9 @@ public class StarStreamStore {
   /**
    * Constructor.
    */
-  StarStreamStore() {
+  StarStreamStore(int maxSize) {
     store = new HashMap<UUID, Map<PastryId, Chunk<?>>>();
+    this.maxSize = maxSize;
   }
 
   /**
@@ -70,15 +78,20 @@ public class StarStreamStore {
    */
   boolean addChunk(Chunk<?> chunk) {
     boolean added = false;
-    Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
-    if(chunks==null) {
-      chunks = new HashMap<PastryId, Chunk<?>>();
-      store.put(chunk.getSessionId(), chunks);
-    }
-    // store the resource iff it is not there yet
-    if(!chunks.containsKey(chunk.getResourceId())) {
-      chunks.put(chunk.getResourceId(), chunk);
-      added = true;
+    if(!chunk.isExpired()) {
+      purge(chunk.getSessionId());
+      if(size()<maxSize) {
+        Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
+        if(chunks==null) {
+          chunks = new HashMap<PastryId, Chunk<?>>();
+          store.put(chunk.getSessionId(), chunks);
+        }
+        // store the resource iff it is not there yet
+        if(!chunks.containsKey(chunk.getResourceId())) {
+          chunks.put(chunk.getResourceId(), chunk);
+          added = true;
+        }
+      }
     }
     return added;
   }
@@ -96,6 +109,11 @@ public class StarStreamStore {
     Map<PastryId, Chunk<?>> chunks = store.get(sessionId);
     if(chunks!=null) {
       chunk = chunks.get(chunkId);
+      // remove and return null if expired
+      if(chunk!=null && chunk.isExpired()) {
+        chunks.remove(chunkId);
+        chunk = null;
+      }
     }
     return chunk;
   }
@@ -111,5 +129,20 @@ public class StarStreamStore {
    */
   boolean isStored(UUID sessionId, PastryId chunkId) {
     return getChunk(sessionId, chunkId)!=null;
+  }
+
+  private void purge(UUID sessionId) {
+    List<PastryId> expired = new ArrayList<PastryId>();
+    Map<PastryId, Chunk<?>> chunks = store.get(sessionId);
+    if(chunks!=null) {
+      for(Map.Entry<PastryId, Chunk<?>> chunk : chunks.entrySet()) {
+        if(chunk.getValue().isExpired()) {
+          expired.add(chunk.getKey());
+        }
+      }
+      for(PastryId id : expired) {
+        chunks.remove(id);
+      }
+    }
   }
 }

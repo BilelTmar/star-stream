@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import peersim.core.CommonState;
 
 /**
  * This class is useful to disparate other components that need to deal with chunks.
@@ -50,8 +51,8 @@ public class ChunkUtils {
    * @param seqNumber The chunk sequence number
    * @return The new chunk
    */
-  static <T> Chunk<T> createChunk(T data, UUID sid, int seqNumber) {
-    Chunk<T> chunk = new Chunk<T>(data, sid, seqNumber);
+  static <T> Chunk<T> createChunk(T data, UUID sid, int seqNumber, int ttl) {
+    Chunk<T> chunk = new Chunk<T>(data, sid, seqNumber, ttl);
     storeNewChunkIdentity(chunk);
     return chunk;
   }
@@ -105,6 +106,8 @@ public class ChunkUtils {
 
     private final UUID sessionId;
     private final int sequenceId;
+    private final long timeStamp;
+    private final int ttl;
 
     /**
      * Constructor.
@@ -112,10 +115,12 @@ public class ChunkUtils {
      * @param sid The streaming-session identifier
      * @param seq The sequence number
      */
-    private Chunk(T chunk, UUID sid, int seq) {
+    private Chunk(T chunk, UUID sid, int seq, int ttl) {
       super(chunk);
       sessionId = sid;
       sequenceId = seq;
+      timeStamp = CommonState.getTime();
+      this.ttl = ttl;
     }
 
     /**
@@ -175,6 +180,18 @@ public class ChunkUtils {
      */
     public UUID getSessionId() {
       return sessionId;
+    }
+
+    public long getTimeStamp() {
+      return timeStamp;
+    }
+
+    public int getTTL() {
+      return ttl;
+    }
+
+    public boolean isExpired() {
+      return CommonState.getTime() > timeStamp + ttl;
     }
   }
 }

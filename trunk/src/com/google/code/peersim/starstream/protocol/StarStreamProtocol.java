@@ -80,16 +80,16 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * Whether messages should be corruptable or not.
    */
   private float curruptedMessagesProbability;
-  /**
-   * How many simulation-time units a chunk can persist in the *-Stream Store before
-   * it is removed to make room for other chunks.
-   */
-  public static final String CHUNK_EXPIRATION = "chunkExpiration";
-  /**
-   * How many simulation-time units a chunk can persist in the *-Stream Store before
-   * it is removed to make room for other chunks.
-   */
-  private int chunkExpiration;
+//  /**
+//   * How many simulation-time units a chunk can persist in the *-Stream Store before
+//   * it is removed to make room for other chunks.
+//   */
+//  public static final String CHUNK_EXPIRATION = "chunkExpiration";
+//  /**
+//   * How many simulation-time units a chunk can persist in the *-Stream Store before
+//   * it is removed to make room for other chunks.
+//   */
+//  private int chunkExpiration;
   /**
    * How many simulation-time units a node should try and send a chunk to another one.
    */
@@ -141,7 +141,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * This is the *-Stream local-store for storing chunks.
    */
-  private StarStreamStore store = new StarStreamStore();
+  private StarStreamStore store;
   /**
    * Set of listeners configured to listen to protocol events.
    */
@@ -165,6 +165,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
 
   private SortedSet<StarStreamMessage> delayedInMessages = new TreeSet<StarStreamMessage>();
   private SortedSet<StarStreamMessage> delayedOutMessages = new TreeSet<StarStreamMessage>();
+  private boolean aggressive;
 
   /**
    * Constructor. Sets up only those configuration parameters that can be set
@@ -184,10 +185,12 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     if(curruptedMessages) {
       curruptedMessagesProbability = (float)Configuration.getDouble(prefix+SEPARATOR+CURRUPTED_MESSAGES_PROB);
     }
-    chunkExpiration = Configuration.getInt(prefix+SEPARATOR+CHUNK_EXPIRATION);
+//    chunkExpiration = Configuration.getInt(prefix+SEPARATOR+CHUNK_EXPIRATION);
     downStream = Configuration.getInt(prefix+SEPARATOR+"downStream");
     upStream = Configuration.getInt(prefix+SEPARATOR+"upStream");
     maxChunkRetries = Configuration.getInt(prefix+SEPARATOR+MAX_CHUNK_RETRIES);
+    store = new StarStreamStore(starStoreSize);
+    aggressive = Configuration.getBoolean(prefix+SEPARATOR+"aggressive");
   }
 
   /**
@@ -199,7 +202,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       Object clone = super.clone();
       ((StarStreamProtocol)clone).owner = null;
       ((StarStreamProtocol)clone).pastryProtocol = null;
-      ((StarStreamProtocol)clone).store = new StarStreamStore();
+      ((StarStreamProtocol)clone).store = new StarStreamStore(starStoreSize);
       ((StarStreamProtocol)clone).listeners = new ArrayList<StarStreamProtocolListenerIfc>();
       ((StarStreamProtocol)clone).pendingChunkMessages = new HashMap<UUID, ChunkMessage>();
       ((StarStreamProtocol)clone).pendingChunkRequests = new HashMap<UUID, ChunkRequest>();
@@ -269,7 +272,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
           removeFromDelayedInMessages(msg);
           // since there is enough bandwidth we process the message
           processEvent(msg);
-          
         }
       }
       // ... and from the outs
@@ -578,8 +580,13 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * {@code isOnPastryEvent} is {@link Boolean#TRUE}
    */
   private void advertiseChunk(ChunkMessage msg, boolean isOnPastryEvent, Chunk<?> chunk) {
-//    Set<StarStreamNode> neighbors = selectInNeighbors(StarStreamMessage.Type.CHUNK);
-    Set<StarStreamNode> neighbors = selectOutNeighbors(StarStreamMessage.Type.CHUNK_ADV);
+    Set<StarStreamNode> neighbors;
+    if(!aggressive)
+      // use max concurrent upload capacity for chunks
+      neighbors = selectInNeighbors(StarStreamMessage.Type.CHUNK);
+    else
+      // use max concurrent upload capacity for chunk_advs
+      neighbors = selectOutNeighbors(StarStreamMessage.Type.CHUNK_ADV);
     List<ChunkAdvertisement> advs = null;
     if(isOnPastryEvent) {
       advs = ChunkAdvertisement.newInstancesFor(owner,neighbors,chunk);
@@ -664,13 +671,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunk(ChunkMessage chunkMessage) {
     log("[RCV] "+chunkMessage);
-    if(checkMessageIntegrity(chunkMessage)) {
+    if(!chunkMessage.isExpired()) {
+      if(checkMessageIntegrity(chunkMessage)) {
       // remove from the pending requests
       removeFromPendingChunkRequests(chunkMessage);
       // send OK and proceede
       handleChunk_SendOK(chunkMessage);
       // locally save the chunk
-      storeIfNotStored(chunkMessage.getChunk());  
+      storeIfNotStored(chunkMessage.getChunk());
       // advertise the new chunk
       advertiseChunk(chunkMessage, false, null);
       if(chunkMessage.isFromSigma()) {
@@ -681,6 +689,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       // send KO and abort
       handleChunk_SendKO(chunkMessage);
     }
+    } else {
+      log("[*** WARN ***] message "+chunkMessage+" exceeded its TTL");
+  }
   }
 
   /**
@@ -717,8 +728,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @see StarStreamProtocol#resourceDiscovered(com.google.code.peersim.pastry.protocol.PastryResourceDiscoveryLsnrIfc.ResourceDiscoveredInfo)
    */
   private void handleChunkFromPastry(Chunk<?> chunk) {
-    storeIfNotStored(chunk);
-    advertiseChunk(null,true,chunk);
+    if(storeIfNotStored(chunk)) {
+      advertiseChunk(null,true,chunk);
+    }
   }
 
   /**
@@ -951,7 +963,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private boolean send(StarStreamMessage msg) {
     boolean sent = false;
     if(StarStreamMessage.Type.CHUNK.equals(msg.getType())) {
-      // send over unreliable transport
       sent = sendChunkMessage((ChunkMessage) msg);
     } else {
       // send over reliable transport
@@ -969,13 +980,15 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private boolean sendChunkMessage(ChunkMessage msg) {
     boolean sent = false;
-    // send over unrel. transport
-    if(sendOverUnreliableTransport(msg)) {
-      // add to chunks waiting for ack
-      rememberPendingChunk(msg);
-      sent = true;
-    } else {
-      // NOP, the message has been surely delayed
+    if(!msg.isExpired()) {
+      // send over unrel. transport
+      if(sendOverUnreliableTransport(msg)) {
+        // add to chunks waiting for ack
+        rememberPendingChunk(msg);
+        sent = true;
+      } else {
+        // NOP, the message has been surely delayed
+      }
     }
     return sent;
   }
@@ -1026,10 +1039,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * 
    * @param chunk The chunk
    */
-  private void storeIfNotStored(Chunk<?> chunk) {
-    if(store==null)
-      store = new StarStreamStore();
-    if(store.addChunk(chunk)) {
+  private boolean storeIfNotStored(Chunk<?> chunk) {
+    boolean stored = store.addChunk(chunk);
+    if(stored) {
       // the chunk has been added to the local store
       notifyChunkStoredToListeners(chunk);
     } else {
@@ -1037,6 +1049,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
       // already there
       // NOP
     }
+    return stored;
   }
 
   /**
