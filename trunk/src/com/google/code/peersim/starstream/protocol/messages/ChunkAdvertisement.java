@@ -107,6 +107,6 @@ public class ChunkAdvertisement extends StarStreamMessage {
    */
   @Override
   public String toString() {
-    return super.toString()+" Sid: "+sessionId+" Id: "+chunkId;
+    return super.toString()+" Sid: "+sessionId+" Id: "+chunkId+" Timestamp: "+getTimeStamp();
   }
 }
