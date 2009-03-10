@@ -29,6 +29,17 @@ public class ChunkUtils {
    */
   private static Map<UUID, Map<Integer, PastryId>> chunkIds = new HashMap<UUID, Map<Integer, PastryId>>();
 
+  private static int minSeqNumber = -1;
+
+  public static PastryId getChunkIdForSequenceId(UUID sessionId, int seqId) {
+    PastryId res = null;
+    Map<Integer, PastryId> chunks = chunkIds.get(sessionId);
+    if(chunks!=null) {
+      res = chunks.get(seqId);
+    }
+    return res;
+  }
+
   public static List<PastryId> getChunkIdsForSequenceIds(UUID sessionId, List<Integer> seqIds) {
     List<PastryId> pids = new ArrayList<PastryId>();
     Map<Integer, PastryId> chunks = chunkIds.get(sessionId);
@@ -52,9 +63,15 @@ public class ChunkUtils {
    * @return The new chunk
    */
   static <T> Chunk<T> createChunk(T data, UUID sid, int seqNumber, int ttl) {
+    // TODO multisession minSeqNum
+    minSeqNumber = Math.min(seqNumber, minSeqNumber);
     Chunk<T> chunk = new Chunk<T>(data, sid, seqNumber, ttl);
     storeNewChunkIdentity(chunk);
     return chunk;
+  }
+
+  public static int getMinSeqNumber() {
+    return minSeqNumber;
   }
 
   /**
@@ -192,6 +209,11 @@ public class ChunkUtils {
 
     public boolean isExpired() {
       return CommonState.getTime() > timeStamp + ttl;
+    }
+
+    @Override
+    public String toString() {
+      return super.toString()+" TTL "+getTTL()+" Timestamp "+getTimeStamp();
     }
   }
 }

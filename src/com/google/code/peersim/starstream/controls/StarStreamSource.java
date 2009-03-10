@@ -56,12 +56,26 @@ public class StarStreamSource implements Control {
    * Configurable number of chunks that must be produced per simulated-time unit.
    */
   public static final String CHUNKS_PER_TIME_UNIT = "chunksPerTimeUnit";
+
+  public static boolean isSeqIdLegal(int nextChunkSeqId) {
+    return nextChunkSeqId < chunks;
+  }
+
+  public static int getTotalChunks() {
+    return chunks;
+  }
+
+  static int getNodesPerChunk() {
+    return nodesPerChunk;
+  }
+
   private int chunksPerTimeUnit;
   /**
    * Configurable number of nodes each new chunk must be sent to.
    */
   public static final String NODES_PER_CHUNK = "nodesPerChunk";
-  private int nodesPerChunk;/**
+  private static int nodesPerChunk;
+  /**
    * Configurable number of nodes each new chunk must be sent to.
    */
   public static final String ELEGIBLE_NODE_RETRIES_PERCENTAGE = "elegibleNodeRetriesPercentage";
@@ -70,7 +84,7 @@ public class StarStreamSource implements Control {
    * Total number of chunks the source has to produce and send.
    */
   public static final String CHUNKS = "chunks";
-  private int chunks;
+  private static int chunks;
 
   public static final String TTL = "ttl";
   private int ttl;
@@ -161,6 +175,8 @@ public class StarStreamSource implements Control {
   public static UUID getStarStreamSessionId() {
     return SESSION_ID;
   }
+  private int chunkPlaybackLength;
+  private long advance;
 
   /**
    * Constructor.
@@ -170,7 +186,9 @@ public class StarStreamSource implements Control {
   public StarStreamSource(String prefix) throws FileNotFoundException {
     super();
     chunksPerTimeUnit = Configuration.getInt(prefix+"."+CHUNKS_PER_TIME_UNIT);
-    nodesPerChunk = Configuration.getInt(prefix+"."+NODES_PER_CHUNK);
+    nodesPerChunk = (int) Math.ceil( Configuration.getDouble(prefix+"."+NODES_PER_CHUNK) );
+    if(nodesPerChunk==0)
+      nodesPerChunk = 1;
     chunks = Configuration.getInt(prefix+"."+CHUNKS);
     start = Configuration.getLong(prefix+"."+START_TIME);
     ackTimeout = Configuration.getInt(prefix+"."+CHUNK_ACK_TIMEOUT);
@@ -181,6 +199,8 @@ public class StarStreamSource implements Control {
       logFile = new FileNameGenerator(Configuration.getString(prefix + "."+LOG_FILE), ".log").nextCounterName();
       stream = new PrintStream(new FileOutputStream(logFile));
     }
+    chunkPlaybackLength = Configuration.getInt(prefix+"."+"chunkPlaybackLength");
+    advance = Configuration.getInt(prefix+"."+"advance");
   }
 
   /**
@@ -200,14 +220,16 @@ public class StarStreamSource implements Control {
   @Override
   public boolean execute() {
     boolean stop = false;
-    if(enabled && CommonState.getTime()>=start) {
-      // new chunks creation and diffusion
-      if(createdChunksCounter<chunks) {
-        Set<Chunk<?>> batch = produceChunks(SESSION_ID, chunksPerTimeUnit);
-        spreadChunks(batch,nodesPerChunk);
+    if(enabled /**&& CommonState.getTime()>=start*/) {
+      if(CommonState.getTime() == start+createdChunksCounter*chunkPlaybackLength-advance) {
+        // new chunks creation and diffusion
+        if(createdChunksCounter<chunks) {
+          Set<Chunk<?>> batch = produceChunks(SESSION_ID, chunksPerTimeUnit);
+          spreadChunks(batch,nodesPerChunk);
+        }
+        // check for expired timeouts
+        checkForExpiredTimeouts();
       }
-      // check for expired timeouts
-      checkForExpiredTimeouts();
     }
     return stop;
   }
@@ -256,6 +278,16 @@ public class StarStreamSource implements Control {
       }
     }
   }
+
+//  private double computeAdvance() {
+//    int dim = Network.size();
+//    int nodeIndex = CommonState.r.nextInt(dim);
+//    double adv = ((StarStreamNode)Network.get(nodeIndex)).getPerceivedAvgChunkDeliveryTime();
+//    if(adv==0)
+//      return advance;
+//    else
+//      return adv;
+//  }
 
   /**
    * Logs the given message to the configured stream.

@@ -2,7 +2,6 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package com.google.code.peersim.starstream.protocol;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
@@ -14,13 +13,17 @@ import com.google.code.peersim.starstream.controls.StarStreamSource;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import peersim.config.Configuration;
 import peersim.config.FastConfig;
 import peersim.core.CommonState;
 import peersim.transport.Transport;
+import peersim.util.IncrementalStats;
 
 /**
  * This class represents a node that leverages both the *-Stream and the Pastry
@@ -46,16 +49,23 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    * Separator char used for PeersSim-related configuration properties.
    */
   private static final String SEPARATOR = ".";
-  
   /**
    * Flag that tells if enough chunks have been collected for the playback to start.
    */
-  private boolean canStartPlayback;
-
-  private StarStreamBuffer buffer;
+  private boolean playbackStarted;
   private int MIN_CONTIGUOUS_CHUNKS_IN_BUFFER;
   private long START_STREAMING_TIME;
   private int START_STREAMING_TIMEOUT;
+//  private int WAIT_BETWEEN_FORCES;
+//  private long lastForce;
+//  private boolean aggressive;
+  private long whenPlaybackStarted;
+  private IncrementalStats perceivedChunkDeliveryTimes;
+  private int advance;
+  private int chunkPlaybackLength;
+  private Set<Integer> issuedChunkRequests;
+  private Set<Integer> deliveredChunks;
+  private List<Integer> pendingChunkRequests;
 
   /**
    * Default PeerSim-required constructor.
@@ -65,14 +75,18 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   public StarStreamNode(String prefix) throws FileNotFoundException {
     super(prefix);
-    STAR_STREAM_PID = Configuration.getPid(prefix+SEPARATOR+STAR_STREAM);
+    STAR_STREAM_PID = Configuration.getPid(prefix + SEPARATOR + STAR_STREAM);
     // at this point the protocl stack for the current node must have been already
     // initialized by the PeerSim runtime, so this is the right time for takeing
     // references to Pastry and *-Stream and tight the two instance enabling the
     // latter to receive notifications from the former
-    MIN_CONTIGUOUS_CHUNKS_IN_BUFFER = Configuration.getInt(prefix+SEPARATOR+"minContiguousChunksInBuffer");
-    START_STREAMING_TIME = Configuration.getLong(prefix+SEPARATOR+"streamingStart");
-    START_STREAMING_TIMEOUT = Configuration.getInt(prefix+SEPARATOR+"streamingStartTimeout");
+    MIN_CONTIGUOUS_CHUNKS_IN_BUFFER = Configuration.getInt(prefix + SEPARATOR + "minContiguousChunksInBuffer");
+    START_STREAMING_TIME = Configuration.getLong(prefix + SEPARATOR + "startStreaming");
+    START_STREAMING_TIMEOUT = (int) Math.ceil(Configuration.getDouble(prefix + SEPARATOR + "startStreamingTimeout"));
+//    WAIT_BETWEEN_FORCES = Configuration.getInt(prefix+SEPARATOR+"waitBetweenForces");
+//    aggressive = Configuration.getBoolean(prefix+SEPARATOR+"aggressive");
+    advance = Configuration.getInt(prefix + SEPARATOR + "advance");
+    chunkPlaybackLength = Configuration.getInt(prefix + SEPARATOR + "chunkPlaybackLength");
     init();
   }
 
@@ -81,18 +95,82 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    * for acks/nacks and behave consequently.
    */
   public void checkForStarStreamTimeouts() {
-    if(isUp())
+    if (isJoined()) {
       getStarStreamProtocol().checkForTimeouts();
+    }
   }
 
   public void checkForStartStreamingTimeout() {
-    if(isUp() && !canStartPlayback) {
-      if(CommonState.getTime()-START_STREAMING_TIME > START_STREAMING_TIMEOUT) {
-        // driiin!!! timeout expired
-        // start proactive search (pull) for those chunks required to fill in
-        // the buffer
-//        forceBufferFillIn();
+    if (isJoined()) {
+//      if(!playbackStarted) {
+//        if(CommonState.getTime() > START_STREAMING_TIME + START_STREAMING_TIMEOUT) {
+//          // driiin!!! timeout expired
+//          // start proactive search (pull) for those chunks required to fill in
+//          // the buffer
+//          forceBufferFillIn();
+//        }
+//      } else {
+//        scheduleNextChunkRequest();
+//      }
+      if (CommonState.getTime() > START_STREAMING_TIME + START_STREAMING_TIMEOUT) {
+        processPendingChunkRequests();
+        scheduleNextChunkRequest();
       }
+    }
+  }
+
+  public int countMissingChunks() {
+    return issuedChunkRequests.size();
+  }
+
+  public double getPerceivedAvgChunkDeliveryTime() {
+    return perceivedChunkDeliveryTimes.getAverage();
+  }
+
+  public long getSentMessages() {
+    return getStarStreamProtocol().getSentMessages();
+  }
+
+  private void processPendingChunkRequests() {
+    UUID sessionId = StarStreamSource.getStarStreamSessionId();
+    Integer[] pcrs = pendingChunkRequests.toArray(new Integer[pendingChunkRequests.size()]);
+    pendingChunkRequests.clear();
+    for (int pcr : pcrs) {
+      foo(sessionId, pcr);
+    }
+  }
+
+  private void scheduleNextChunkRequest() {
+    long currentTime = CommonState.getTime();
+    double avgObservedDeliveryTime = perceivedChunkDeliveryTimes.getAverage();
+    double num = currentTime + advance + avgObservedDeliveryTime - whenPlaybackStarted;
+    int nextChunkSeqId = Double.valueOf(Math.floor(num / chunkPlaybackLength)).intValue();
+    if (StarStreamSource.isSeqIdLegal(nextChunkSeqId) && !hasBeenDelivered(nextChunkSeqId)) {
+      // once the next seq-id has been computed we have to:
+      // 1. store somewhere that the i-th chunk has been scheduled for search right now
+      // 2. start searching for that chunk iff this is the very first time we scheduled it
+      // NOTE: pro-actively searching for a chunk entails two steps:
+      // 1. ask some neighbors if anyone of them actually has the chunk
+      // 2. either in the event of nacks or in case of req-timeout expiration, issue
+      //    a Pastry lookup for that chunk: the Pastry lookup already has its own
+      //    configurable retries
+      // Thus, according to the two observations above, it is not necessary implementing
+      // at this level any kind of resubmission logic for chunk requests
+      if (addToIssuedChunkRequests(nextChunkSeqId)) {
+        UUID sessionId = StarStreamSource.getStarStreamSessionId();
+        foo(sessionId, nextChunkSeqId);
+      }
+    }
+  }
+
+  private void foo(UUID sessionId, int nextChunkSeqId) {
+    PastryId chunkId = ChunkUtils.getChunkIdForSequenceId(sessionId, nextChunkSeqId);
+    if (chunkId != null) {
+      log("[*-STREAM] node " + this.getPastryId() + " starts looking for chunk(" + nextChunkSeqId + ") " + chunkId);
+      getStarStreamProtocol().searchForChunk(sessionId, chunkId);
+    } else {
+      pendingChunkRequests.add(nextChunkSeqId);
+      log("[*-STREAM] WARN node " + this.getPastryId() + " No one knows anything about chunk " + nextChunkSeqId);
     }
   }
 
@@ -107,16 +185,6 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
   }
 
   /**
-   * Returns a reference to the configure <i>unreliable</i> transport for the
-   * *-Stream protocol.
-   *
-   * @return The unreliable transport
-   */
-  public Transport getStarStreamTransport() {
-    return (Transport) getProtocol(FastConfig.getTransport(STAR_STREAM_PID));
-  }
-
-  /**
    * The PeerSim-assigned *-Stream protocol identifier.
    *
    * @return The PeerSim-assigned *-Stream protocol identifier.
@@ -125,12 +193,26 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     return STAR_STREAM_PID;
   }
 
+  public boolean hasStartedPlayback() {
+    return playbackStarted;
+  }
+
+  /**
+   * Returns a reference to the configure <i>unreliable</i> transport for the
+   * *-Stream protocol.
+   *
+   * @return The unreliable transport
+   */
+  Transport getStarStreamTransport() {
+    return (Transport) getProtocol(FastConfig.getTransport(STAR_STREAM_PID));
+  }
+
   /**
    * Returns a reference to the *-Store owned by this node.
    *
    * @return The *-Store
    */
-  public StarStreamStore getStore() {
+  StarStreamStore getStore() {
     return getStarStreamProtocol().getStore();
   }
 
@@ -139,16 +221,22 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   @Override
   public void notifyNewChunk(Chunk<?> chunk) {
-    log("[*-STREAM] node "+this.getPastryId()+" has stored resource "+chunk);
-    bufferChunk(chunk);
+    log("[*-STREAM] node " + this.getPastryId() + " has stored resource " + chunk);
+    updateLocalStats(chunk);
+    removeFromIssuedChunkRequests(chunk.getSequenceId());
+    addToDeliveredChunks(chunk.getSequenceId());
+    if (!playbackStarted) {
+      checkIfPlaybackIsAllowed();
+    }
   }
 
   /**
    * Tells the node to start processing potentially delayed messages.
    */
   public void processDelayedMessages() {
-    if(isUp())
+    if (isJoined()) {
       getStarStreamProtocol().processDelayedMessages();
+    }
   }
 
   /**
@@ -165,7 +253,11 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   @Override
   public String toString() {
-    return super.toString()+"\n"+getStore();
+    return super.toString() + "\n" + getStore();
+  }
+
+  public long getWhenPlaybackStarted() {
+    return whenPlaybackStarted;
   }
 
   /**
@@ -176,34 +268,36 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     return (StarStreamProtocol) getProtocol(STAR_STREAM_PID);
   }
 
-  private void bufferChunk(Chunk<?> chunk) {
-    // add the chunk to the buffer
-    buffer.add(chunk);
-    // if the playback has not been started yet...
-    if(!canStartPlayback) {
-      // ... check if it is possible to
-      checkIfPlaybackIsAllowed();
-    }
+  private void addToDeliveredChunks(int sequenceId) {
+    deliveredChunks.add(sequenceId);
+  }
+
+  private boolean addToIssuedChunkRequests(int nextChunkSeqId) {
+    return issuedChunkRequests.add(nextChunkSeqId);
   }
 
   private void checkIfPlaybackIsAllowed() {
-    if(buffer.countContiguousChunks()==MIN_CONTIGUOUS_CHUNKS_IN_BUFFER) {
+    int contiguousChunks = getStore().countContiguousChunksFromStart(StarStreamSource.getStarStreamSessionId());
+    if (contiguousChunks >= MIN_CONTIGUOUS_CHUNKS_IN_BUFFER) {
       startPalyBack();
     }
   }
 
-  private List<PastryId> collectMissingChunkIds() {
-    List<Integer> seqIds = buffer.getMissingSequenceIds();
-    if(seqIds.size()==0) {
-      // we are really unlucky, the buffer is completely empty, but luckly we know
-      // we can search for chunks with seqIDs from 0 to whatever we think is appropriate
-      for(int i=0; i<MIN_CONTIGUOUS_CHUNKS_IN_BUFFER; i++) {
-        seqIds.add(i);
-      }
-    }
-    return ChunkUtils.getChunkIdsForSequenceIds(StarStreamSource.getStarStreamSessionId(), seqIds);
-  }
-
+//  private List<PastryId> collectMissingChunkIds() {
+//    List<Integer> seqIds = getStore().getMissingSequenceIds(StarStreamSource.getStarStreamSessionId());
+//    if(seqIds.size()==0) {
+//      if(aggressive) {
+//        // we are really unlucky, the buffer is completely empty, but luckly we know
+//        // we can search for chunks with seqIDs from 0 to whatever we think is appropriate
+//        for(int i=0; i<MIN_CONTIGUOUS_CHUNKS_IN_BUFFER; i++) {
+//          seqIds.add(i);
+//        }
+//      } else {
+//        seqIds.add(ChunkUtils.getMinSeqNumber());
+//      }
+//    }
+//    return ChunkUtils.getChunkIdsForSequenceIds(StarStreamSource.getStarStreamSessionId(), seqIds);
+//  }
   /**
    * This methods tries to fill in the first
    * {@link StarStreamNode#MIN_CONTIGUOUS_CHUNKS_IN_BUFFER} buffer positions with
@@ -215,11 +309,17 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    * <li>ask the *-Stream protocol instance to start looking for those chunks</li>
    * </ol>
    */
-  private void forceBufferFillIn() {
-    List<PastryId> missingChunkIds = collectMissingChunkIds();
-    for(PastryId id : missingChunkIds) {
-      getStarStreamProtocol().searchForChunk(StarStreamSource.getStarStreamSessionId(), id);
-    }
+//  private void forceBufferFillIn() {
+//    if(CommonState.getTime() > lastForce + WAIT_BETWEEN_FORCES) {
+//      lastForce = CommonState.getTime();
+//      List<PastryId> missingChunkIds = collectMissingChunkIds();
+//      for(PastryId id : missingChunkIds) {
+//        getStarStreamProtocol().searchForChunk(StarStreamSource.getStarStreamSessionId(), id);
+//      }
+//    }
+//  }
+  private boolean hasBeenDelivered(int seqId) {
+    return deliveredChunks.contains(seqId);
   }
 
   /**
@@ -232,77 +332,28 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     getStarStreamProtocol().registerStarStreamListener(this);
     PastryProtocol pastry = getPastryProtocol();
     getStarStreamProtocol().registerPastryListeners(pastry);
-    canStartPlayback = false;
-    buffer = new StarStreamBuffer();
+    playbackStarted = false;
+//    this.lastForce = 0;
+    this.playbackStarted = false;
+    this.whenPlaybackStarted = -1;
+    this.perceivedChunkDeliveryTimes = new IncrementalStats();
+    this.issuedChunkRequests = new LinkedHashSet<Integer>();
+    this.deliveredChunks = new LinkedHashSet<Integer>();
+    this.pendingChunkRequests = new LinkedList<Integer>();
+  }
+
+  private void removeFromIssuedChunkRequests(int sequenceId) {
+    issuedChunkRequests.remove(sequenceId);
   }
 
   private void startPalyBack() {
-    canStartPlayback=true;
-    // TODO start application
+    playbackStarted = true;
+    whenPlaybackStarted = CommonState.getTime();
+    log("[*-STREAM] node " + this.getPastryId() + " has started playback");
   }
 
-  /**
-   * @author frusso
-   * @version 0.1
-   * @since 0.1
-   */
-  static class StarStreamBuffer implements Iterable<Chunk<?>> {
-
-    private Set<Chunk<?>> buffer;
-
-    private StarStreamBuffer() {
-      buffer = new TreeSet<Chunk<?>>();
-    }
-
-    private void add(Chunk<?> chunk) {
-      buffer.add(chunk);
-    }
-
-    public int countContiguousChunks() {
-      boolean firstRound = true;
-      int firstSeqId = -1;
-      int counter = 1;
-
-      for(Chunk<?> c : buffer) {
-        if(firstRound) {
-          firstRound = false;
-          firstSeqId = c.getSequenceId();
-        } else {
-          int seqId = c.getSequenceId();
-          if(seqId == firstSeqId+1) {
-            counter++;
-          } else {
-            break;
-          }
-        }
-      }
-
-      return counter;
-    }
-
-    @Override
-    public Iterator<Chunk<?>> iterator() {
-      return buffer.iterator();
-    }
-
-    private List<Integer> getMissingSequenceIds() {
-      List<Integer> ids = new ArrayList<Integer>();
-      boolean firstRound = true;
-      int head = -1;
-
-      for(Chunk<?> c : buffer) {
-        if(firstRound) {
-          firstRound = false;
-          head = c.getSequenceId();
-        } else {
-          int seqId = c.getSequenceId();
-          for(int i=head+1; i<seqId; i++) {
-            ids.add(i);
-          }
-        }
-      }
-
-      return ids;
-    }
+  private void updateLocalStats(Chunk<?> chunk) {
+    long deliveryTime = CommonState.getTime() - chunk.getTimeStamp();
+    perceivedChunkDeliveryTimes.add(deliveryTime);
   }
 }
