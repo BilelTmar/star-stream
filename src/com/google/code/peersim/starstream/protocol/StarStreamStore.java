@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -30,7 +31,7 @@ public class StarStreamStore {
    */
   private Map<UUID, Map<PastryId, Chunk<?>>> store;
   // TODO multi-session
-  private Set<Chunk<?>> orderedStore;
+  private SortedSet<Chunk<?>> orderedStore;
   private int maxSize;
 
   /**
@@ -38,9 +39,10 @@ public class StarStreamStore {
    *
    * @return The number of stored chunks
    */
-  public int size() {
+  private int size() {
     int size = 0;
     for (Map.Entry<UUID, Map<PastryId, Chunk<?>>> entry : store.entrySet()) {
+      purge(entry.getKey());
       size += entry.getValue().size();
     }
     return size;
@@ -52,9 +54,9 @@ public class StarStreamStore {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    //sb.append("JvmStoreId: "+super.toString()+"\n");
     for (Map.Entry<UUID, Map<PastryId, Chunk<?>>> entry : store.entrySet()) {
       UUID sid = entry.getKey();
+      purge(sid);
       sb.append("SessionId: " + sid + "\n");
       Map<PastryId, Chunk<?>> chunks = entry.getValue();
       sb.append("Size: " + chunks.size() + "\n");
@@ -83,7 +85,7 @@ public class StarStreamStore {
   boolean addChunk(Chunk<?> chunk) {
     boolean added = false;
     if (!chunk.isExpired()) {
-      purge(chunk.getSessionId());
+      // purging is implicit in method size
       if (size() < maxSize) {
         // add to map...
         Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
@@ -100,6 +102,7 @@ public class StarStreamStore {
         orderedStore.add(chunk);
       } else {
         // TODO
+        System.err.println("Store is full, rejecting chunk "+chunk.getSequenceId());
       }
     }
     return added;

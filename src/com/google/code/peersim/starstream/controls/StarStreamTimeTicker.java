@@ -17,13 +17,13 @@ import peersim.core.Network;
  * @version 0.1
  * @since 0.1
  */
-public class StarStreamTimeoutTrigger implements Control {
+public class StarStreamTimeTicker implements Control {
 
   /**
    * PeerSim dictated constructor.
    * @param prefix The configuration properties' prefix
    */
-  public StarStreamTimeoutTrigger(String prefix) {
+  public StarStreamTimeTicker(String prefix) {
     super();
   }
 
@@ -39,8 +39,7 @@ public class StarStreamTimeoutTrigger implements Control {
     int size = Network.size();
     for(int i=0; i<size; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
-      node.checkForStarStreamTimeouts();
-      node.checkForStartStreamingTimeout();
+      node.tick();
     }
     return stop;
   }
