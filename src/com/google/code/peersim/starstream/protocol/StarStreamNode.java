@@ -150,6 +150,15 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     return STAR_STREAM_PID;
   }
 
+  /**
+   * Returns a reference to the *-Store owned by this node.
+   *
+   * @return The *-Store
+   */
+  public StarStreamStore getStore() {
+    return getStarStreamProtocol().getStore();
+  }
+
   public long getWhenPlaybackStarted() {
     return player.getWhenPlaybackStarted();
   }
@@ -215,15 +224,6 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   Transport getStarStreamTransport() {
     return (Transport) getProtocol(FastConfig.getTransport(STAR_STREAM_PID));
-  }
-
-  /**
-   * Returns a reference to the *-Store owned by this node.
-   *
-   * @return The *-Store
-   */
-  StarStreamStore getStore() {
-    return getStarStreamProtocol().getStore();
   }
 
   /**

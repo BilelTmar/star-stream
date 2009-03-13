@@ -101,10 +101,6 @@ public class ChunkMessage extends StarStreamMessage {
     return StarStreamMessage.Type.CHUNK;
   }
 
-//  public boolean isExpired() {
-//    return getChunk().isExpired();
-//  }
-
   /**
    * Tells whether the message has been sent by the source of the streaming.
    *

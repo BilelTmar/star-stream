@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import peersim.config.Configuration;
 import peersim.core.CommonState;
 import peersim.core.Control;
@@ -130,19 +131,49 @@ public class StarStreamNodesObserver implements Control {
     }
     log("Playbacks time-window: "+(lastPlaybackStart-firstPlaybackStart));
     // missing chunks distribution
-    Map<Integer,Integer> missingChunksDistribution = new HashMap<Integer, Integer>();
+    Map<Integer,Integer> chunksTmpMap = new HashMap<Integer, Integer>();
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       int missingChunks = node.countMissingChunks();
-      Integer nodesCount = missingChunksDistribution.get(missingChunks);
+      Integer nodesCount = chunksTmpMap.get(missingChunks);
       if(nodesCount==null) {
-        missingChunksDistribution.put(missingChunks, 1);
+        chunksTmpMap.put(missingChunks, 1);
       } else {
-        missingChunksDistribution.put(missingChunks, ++nodesCount);
+        chunksTmpMap.put(missingChunks, ++nodesCount);
       }
     }
-    log("Missing chunks distribution [missed-chunks/nodes]: "+missingChunksDistribution);
-    missingChunksDistribution.clear();
+    log("Missing chunks distribution [missed-chunks/nodes]: "+chunksTmpMap);
+    chunksTmpMap.clear();
+    // TTL-rejected chunks stats
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      Set<Integer> missed = node.getStore().getRejectedChunksDueToExpiration();
+      for(int id : missed) {
+        Integer nodesCount = chunksTmpMap.get(id);
+        if(nodesCount==null) {
+          chunksTmpMap.put(id, 1);
+        } else {
+          chunksTmpMap.put(id, ++nodesCount);
+        }
+      }
+    }
+    log("Rejected chunks for ttl expiration [chunk-id/nodes]: "+chunksTmpMap);
+    chunksTmpMap.clear();
+    // capacity-rejected chunks stats
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      Set<Integer> missed = node.getStore().getRejectedChunksDueToCapacityLimit();
+      for(int id : missed) {
+        Integer nodesCount = chunksTmpMap.get(id);
+        if(nodesCount==null) {
+          chunksTmpMap.put(id, 1);
+        } else {
+          chunksTmpMap.put(id, ++nodesCount);
+        }
+      }
+    }
+    log("Rejected chunks for capacity limit [chunk-id/nodes]: "+chunksTmpMap);
+    chunksTmpMap.clear();
     // stats of perceived chunk delivery times
     IncrementalStats stats = new IncrementalStats();
     for (int i = 0; i < dim; i++) {
@@ -160,31 +191,31 @@ public class StarStreamNodesObserver implements Control {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       stats.add(node.getSentMessages());
     }
-    stats.reset();
     log("Avg messages sent per node: "+stats.getAverage());
     log("Min messages sent per node: "+stats.getMin());
     log("Max messages sent per node: "+stats.getMax());
     log("Variance of messages sent per node: "+stats.getVar());
     log("StD of messages sent per node: "+stats.getStD());
+    stats.reset();
     // players statistics
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       List<Integer> missed = node.getUnplayedChunks();
       stats.add(node.getPercentageOfUnplayedChunks());
       for(int id : missed) {
-        Integer nodesCount = missingChunksDistribution.get(id);
+        Integer nodesCount = chunksTmpMap.get(id);
         if(nodesCount==null) {
-          missingChunksDistribution.put(id, 1);
+          chunksTmpMap.put(id, 1);
         } else {
-          missingChunksDistribution.put(id, ++nodesCount);
+          chunksTmpMap.put(id, ++nodesCount);
         }
       }
     }
     log("Avg % of not played chunks: "+stats.getAverage());
     log("Min % of not played chunks: "+stats.getMin());
     log("Max % of not played chunks: "+stats.getMax());
-    log("Not played chunks [chunk-id/nodes]: "+missingChunksDistribution);
-    missingChunksDistribution.clear();
+    log("Not played chunks [chunk-id/nodes]: "+chunksTmpMap);
+    chunksTmpMap.clear();
     log("");
     // players detail
     for (int i = 0; i < dim; i++) {
