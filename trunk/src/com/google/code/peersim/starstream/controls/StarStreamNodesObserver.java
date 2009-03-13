@@ -6,6 +6,7 @@ package com.google.code.peersim.starstream.controls;
 
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
+import com.google.code.peersim.starstream.protocol.StarStreamPlayer;
 import com.google.code.peersim.starstream.protocol.StarStreamStore;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -141,6 +142,7 @@ public class StarStreamNodesObserver implements Control {
       }
     }
     log("Missing chunks distribution [missed-chunks/nodes]: "+missingChunksDistribution);
+    missingChunksDistribution.clear();
     // stats of perceived chunk delivery times
     IncrementalStats stats = new IncrementalStats();
     for (int i = 0; i < dim; i++) {
@@ -158,11 +160,37 @@ public class StarStreamNodesObserver implements Control {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       stats.add(node.getSentMessages());
     }
+    stats.reset();
     log("Avg messages sent per node: "+stats.getAverage());
     log("Min messages sent per node: "+stats.getMin());
     log("Max messages sent per node: "+stats.getMax());
     log("Variance of messages sent per node: "+stats.getVar());
     log("StD of messages sent per node: "+stats.getStD());
+    // players statistics
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      List<Integer> missed = node.getUnplayedChunks();
+      stats.add(node.getPercentageOfUnplayedChunks());
+      for(int id : missed) {
+        Integer nodesCount = missingChunksDistribution.get(id);
+        if(nodesCount==null) {
+          missingChunksDistribution.put(id, 1);
+        } else {
+          missingChunksDistribution.put(id, ++nodesCount);
+        }
+      }
+    }
+    log("Avg % of not played chunks: "+stats.getAverage());
+    log("Min % of not played chunks: "+stats.getMin());
+    log("Max % of not played chunks: "+stats.getMax());
+    log("Not played chunks [chunk-id/nodes]: "+missingChunksDistribution);
+    missingChunksDistribution.clear();
+    log("");
+    // players detail
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      log(node.getPlayer().toString());
+    }
     System.err.print("done!\n\n");
   }
 

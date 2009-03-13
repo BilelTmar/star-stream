@@ -177,6 +177,7 @@ public class StarStreamSource implements Control {
   }
   private int chunkPlaybackLength;
   private long advance;
+  private boolean adaptiveAdvance;
 
   /**
    * Constructor.
@@ -201,6 +202,7 @@ public class StarStreamSource implements Control {
     }
     chunkPlaybackLength = Configuration.getInt(prefix+"."+"chunkPlaybackLength");
     advance = Configuration.getInt(prefix+"."+"advance");
+    adaptiveAdvance = Configuration.getBoolean(prefix+"."+"adaptiveAdvance");
   }
 
   /**
@@ -220,8 +222,8 @@ public class StarStreamSource implements Control {
   @Override
   public boolean execute() {
     boolean stop = false;
-    if(enabled /**&& CommonState.getTime()>=start*/) {
-      if(CommonState.getTime() == start+createdChunksCounter*chunkPlaybackLength-advance) {
+    if(enabled) {
+      if(isTimeForChunk()) {
         // new chunks creation and diffusion
         if(createdChunksCounter<chunks) {
           Set<Chunk<?>> batch = produceChunks(SESSION_ID, chunksPerTimeUnit);
@@ -279,15 +281,24 @@ public class StarStreamSource implements Control {
     }
   }
 
-//  private double computeAdvance() {
-//    int dim = Network.size();
-//    int nodeIndex = CommonState.r.nextInt(dim);
-//    double adv = ((StarStreamNode)Network.get(nodeIndex)).getPerceivedAvgChunkDeliveryTime();
-//    if(adv==0)
-//      return advance;
-//    else
-//      return adv;
-//  }
+  private double computeDynamicAdvance() {
+    double dynAdvance;
+    if(adaptiveAdvance) {
+      int dim = Network.size();
+      int nodeIndex = CommonState.r.nextInt(dim);
+      dynAdvance = ((StarStreamNode)Network.get(nodeIndex)).getPerceivedMaxChunkDeliveryTime();
+      if(dynAdvance==Double.MIN_VALUE)
+        dynAdvance = advance;
+    } else {
+      dynAdvance = advance;
+    }
+    return dynAdvance;
+  }
+
+  private boolean isTimeForChunk() {
+    double dynAdvance = computeDynamicAdvance();
+    return CommonState.getTime() == start+createdChunksCounter*chunkPlaybackLength-dynAdvance;
+  }
 
   /**
    * Logs the given message to the configured stream.
