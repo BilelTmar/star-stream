@@ -7,7 +7,9 @@ package com.google.code.peersim.starstream.protocol;
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,20 +34,16 @@ public class StarStreamStore {
   private Map<UUID, Map<PastryId, Chunk<?>>> store;
   // TODO multi-session
   private SortedSet<Chunk<?>> orderedStore;
+  private Set<Integer> rejectedChunksDueToExpiration;
+  private Set<Integer> rejectedChunksDueToCapacityLimit;
   private int maxSize;
 
-  /**
-   * Tells how many chunks are stored.
-   *
-   * @return The number of stored chunks
-   */
-  private int size() {
-    int size = 0;
-    for (Map.Entry<UUID, Map<PastryId, Chunk<?>>> entry : store.entrySet()) {
-      purge(entry.getKey());
-      size += entry.getValue().size();
-    }
-    return size;
+  public Set<Integer> getRejectedChunksDueToCapacityLimit() {
+    return Collections.unmodifiableSet(rejectedChunksDueToCapacityLimit);
+  }
+
+  public Set<Integer> getRejectedChunksDueToExpiration() {
+    return Collections.unmodifiableSet(rejectedChunksDueToExpiration);
   }
 
   /**
@@ -74,6 +72,8 @@ public class StarStreamStore {
   StarStreamStore(int maxSize) {
     store = new HashMap<UUID, Map<PastryId, Chunk<?>>>();
     orderedStore = new TreeSet<Chunk<?>>();
+    rejectedChunksDueToExpiration = new HashSet<Integer>();
+    rejectedChunksDueToCapacityLimit = new HashSet<Integer>();
     this.maxSize = maxSize;
   }
 
@@ -84,26 +84,37 @@ public class StarStreamStore {
    */
   boolean addChunk(Chunk<?> chunk) {
     boolean added = false;
-    if (!chunk.isExpired()) {
-      // purging is implicit in method size
-      if (size() < maxSize) {
-        // add to map...
-        Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
-        if (chunks == null) {
-          chunks = new HashMap<PastryId, Chunk<?>>();
-          store.put(chunk.getSessionId(), chunks);
+    Map<PastryId, Chunk<?>> chunks = store.get(chunk.getSessionId());
+    if(chunks!=null) {
+      if(!chunks.containsKey(chunk.getResourceId())) {
+        // the chunk has to be stored iff it has not expired yet
+        if(!chunk.isExpired()) {
+          // the chunk is valid and can be added as long as the max-size is not
+          // exceeded
+          if(size()<maxSize) {
+            added = true;
+          } else {
+            // size limit!
+            rejectedChunksDueToCapacityLimit.add(chunk.getSequenceId());
+          }
+        } else {
+          // the chunk has already expired
+          rejectedChunksDueToExpiration.add(chunk.getSequenceId());
         }
-        // store the resource iff it is not there yet
-        if (!chunks.containsKey(chunk.getResourceId())) {
-          chunks.put(chunk.getResourceId(), chunk);
-          added = true;
-        }
-        // add to set...
-        orderedStore.add(chunk);
       } else {
-        // TODO
-        System.err.println("Store is full, rejecting chunk "+chunk.getSequenceId());
+        // the chunk is already in
+        // NOP
       }
+    } else {
+      // the first time we see that session id: the chunk can be immediately stored
+      chunks = new HashMap<PastryId, Chunk<?>>();
+      store.put(chunk.getSessionId(), chunks);
+      added = true;
+    }
+    if(added) {
+      added = true;
+      chunks.put(chunk.getResourceId(), chunk);
+      orderedStore.add(chunk);
     }
     return added;
   }
@@ -123,6 +134,7 @@ public class StarStreamStore {
       chunk = chunks.get(chunkId);
       // remove and return null if expired
       if (chunk != null && chunk.isExpired()) {
+        System.err.println("[get chunk] Chunk is expired, rejecting chunk "+chunk.getSequenceId());
         // remove from map...
         chunks.remove(chunkId);
         // remove from set...
@@ -147,6 +159,36 @@ public class StarStreamStore {
     return getChunk(sessionId, chunkId) != null;
   }
 
+  int countContiguousChunksFromStart(UUID sessionId) {
+    int count = 1;
+    purge(sessionId);
+    Chunk<?>[] chunks = orderedStore.toArray(new Chunk<?>[orderedStore.size()]);
+    for(int i=1; i<chunks.length; i++) {
+      int right = chunks[i].getSequenceId();
+      int left = chunks[i-1].getSequenceId();
+      if(right-left==1) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  }
+
+  List<Integer> getMissingSequenceIds(UUID sessionId) {
+    List<Integer> ids = new ArrayList<Integer>();
+    purge(sessionId);
+    Chunk<?>[] chunks = orderedStore.toArray(new Chunk<?>[orderedStore.size()]);
+    for(int i=1; i<chunks.length; i++) {
+      int right = chunks[i].getSequenceId();
+      int left = chunks[i-1].getSequenceId();
+      for(int j=left+1; j<right; j++) {
+        ids.add(j);
+      }
+    }
+    return ids;
+  }
+
   private void purge(UUID sessionId) {
     List<PastryId> expired = new ArrayList<PastryId>();
     Map<PastryId, Chunk<?>> chunks = store.get(sessionId);
@@ -165,33 +207,17 @@ public class StarStreamStore {
     }
   }
 
-  public int countContiguousChunksFromStart(UUID sessionId) {
-    int count = 1;
-    purge(sessionId);
-    Chunk<?>[] chunks = orderedStore.toArray(new Chunk<?>[orderedStore.size()]);
-    for(int i=1; i<chunks.length; i++) {
-      int right = chunks[i].getSequenceId();
-      int left = chunks[i-1].getSequenceId();
-      if(right-left==1) {
-        count++;
-      } else {
-        break;
-      }
+  /**
+   * Tells how many chunks are stored.
+   *
+   * @return The number of stored chunks
+   */
+  private int size() {
+    int size = 0;
+    for (Map.Entry<UUID, Map<PastryId, Chunk<?>>> entry : store.entrySet()) {
+      purge(entry.getKey());
+      size += entry.getValue().size();
     }
-    return count;
-  }
-
-  public List<Integer> getMissingSequenceIds(UUID sessionId) {
-    List<Integer> ids = new ArrayList<Integer>();
-    purge(sessionId);
-    Chunk<?>[] chunks = orderedStore.toArray(new Chunk<?>[orderedStore.size()]);
-    for(int i=1; i<chunks.length; i++) {
-      int right = chunks[i].getSequenceId();
-      int left = chunks[i-1].getSequenceId();
-      for(int j=left+1; j<right; j++) {
-        ids.add(j);
-      }
-    }
-    return ids;
+    return size;
   }
 }

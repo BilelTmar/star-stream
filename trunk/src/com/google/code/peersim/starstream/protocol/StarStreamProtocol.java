@@ -79,16 +79,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * Whether messages should be corruptable or not.
    */
   private float curruptedMessagesProbability;
-//  /**
-//   * How many simulation-time units a chunk can persist in the *-Stream Store before
-//   * it is removed to make room for other chunks.
-//   */
-//  public static final String CHUNK_EXPIRATION = "chunkExpiration";
-//  /**
-//   * How many simulation-time units a chunk can persist in the *-Stream Store before
-//   * it is removed to make room for other chunks.
-//   */
-//  private int chunkExpiration;
   /**
    * How many simulation-time units a node should try and send a chunk to another one.
    */
@@ -182,7 +172,6 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     if (curruptedMessages) {
       curruptedMessagesProbability = (float) Configuration.getDouble(prefix + SEPARATOR + CURRUPTED_MESSAGES_PROB);
     }
-//    chunkExpiration = Configuration.getInt(prefix+SEPARATOR+CHUNK_EXPIRATION);
     downStream = Configuration.getInt(prefix + SEPARATOR + "downStream");
     upStream = Configuration.getInt(prefix + SEPARATOR + "upStream");
     maxChunkRetries = Configuration.getInt(prefix + SEPARATOR + MAX_CHUNK_RETRIES);
