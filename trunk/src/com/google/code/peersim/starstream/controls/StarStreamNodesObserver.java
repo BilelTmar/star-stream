@@ -90,14 +90,20 @@ public class StarStreamNodesObserver implements Control {
    * Dumps down to the log file.
    */
   private void dump() {
+    IncrementalStats stats = new IncrementalStats();
+
     System.err.print("Dumping *-Stream stats to file " + logFile + "... ");
+
     // total chunks
     log("Total chunks: "+StarStreamSource.getTotalChunks());
+
     // nodes x chunk
     log("Nodes x chunk: "+StarStreamSource.getNodesPerChunk());
+
     // total nodes
     int dim = Network.size();
     log("Total nodes: "+dim);
+
     // active nodes
     int activeNodes = 0;
     for (int i = 0; i < dim; i++) {
@@ -106,6 +112,7 @@ public class StarStreamNodesObserver implements Control {
         activeNodes++;
     }
     log("Active nodes: "+activeNodes);
+
     // playback started
     int nodesThatStartedPlayack = 0;
     List<PastryId> nodesThatDidNotStartedPlayback = new LinkedList<PastryId>();
@@ -118,6 +125,7 @@ public class StarStreamNodesObserver implements Control {
     }
     log("Started playbacks: "+nodesThatStartedPlayack);
     log("Not started playbacks node-ids: "+nodesThatDidNotStartedPlayback);
+
     // start-streaming time window
     long lastPlaybackStart = 0;
     long firstPlaybackStart = Long.MAX_VALUE;
@@ -130,6 +138,7 @@ public class StarStreamNodesObserver implements Control {
         firstPlaybackStart = time;
     }
     log("Playbacks time-window: "+(lastPlaybackStart-firstPlaybackStart));
+
     // missing chunks distribution
     Map<Integer,Integer> chunksTmpMap = new HashMap<Integer, Integer>();
     for (int i = 0; i < dim; i++) {
@@ -144,6 +153,7 @@ public class StarStreamNodesObserver implements Control {
     }
     log("Missing chunks distribution [missed-chunks/nodes]: "+chunksTmpMap);
     chunksTmpMap.clear();
+
     // TTL-rejected chunks stats
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
@@ -157,8 +167,9 @@ public class StarStreamNodesObserver implements Control {
         }
       }
     }
-    log("Rejected chunks for ttl expiration [chunk-id/nodes]: "+chunksTmpMap);
+    log("Rejected chunks for ttl expiration [chunk-id/nodes]: "+chunksTmpMap.size()+" "+chunksTmpMap);
     chunksTmpMap.clear();
+
     // capacity-rejected chunks stats
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
@@ -172,10 +183,30 @@ public class StarStreamNodesObserver implements Control {
         }
       }
     }
-    log("Rejected chunks for capacity limit [chunk-id/nodes]: "+chunksTmpMap);
+    log("Rejected chunks for capacity limit [chunk-id/nodes]: "+chunksTmpMap.size()+" "+chunksTmpMap);
     chunksTmpMap.clear();
+
+    // chunks not sent due to max-retries count
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      stats.add(node.getUnsentChunkMsgsDueToTimeout());
+    }
+    log("Avg # of unsent chunk for max-retries: "+stats.getAverage());
+    log("Min # of unsent chunk for max-retries: "+stats.getMin());
+    log("Max # of unsent chunk for max-retries: "+stats.getMax());
+    stats.reset();
+
+    // chunk requests not sent due to max-retries count
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      stats.add(node.getUnsentChunkReqDueToTimeout());
+    }
+    log("Avg # of unsent chunk-reqs for max-retries: "+stats.getAverage());
+    log("Min # of unsent chunk-reqs for max-retries: "+stats.getMin());
+    log("Max # of unsent chunk-reqs for max-retries: "+stats.getMax());
+    stats.reset();
+
     // stats of perceived chunk delivery times
-    IncrementalStats stats = new IncrementalStats();
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       stats.add(node.getPerceivedAvgChunkDeliveryTime());
@@ -185,6 +216,7 @@ public class StarStreamNodesObserver implements Control {
     log("Max of perceived avg chunk delivery-time: "+stats.getMax());
     log("Variance of perceived avg chunk delivery-time: "+stats.getVar());
     log("StD of perceived avg chunk delivery-time: "+stats.getStD());
+
     // avg sent messages per node
     stats.reset();
     for (int i = 0; i < dim; i++) {
@@ -197,10 +229,14 @@ public class StarStreamNodesObserver implements Control {
     log("Variance of messages sent per node: "+stats.getVar());
     log("StD of messages sent per node: "+stats.getStD());
     stats.reset();
+
     // players statistics
+    int nodesWithUncompletePlaybacks = 0;
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       List<Integer> missed = node.getUnplayedChunks();
+      if(missed.size()>0)
+        nodesWithUncompletePlaybacks++;
       stats.add(node.getPercentageOfUnplayedChunks());
       for(int id : missed) {
         Integer nodesCount = chunksTmpMap.get(id);
@@ -211,12 +247,36 @@ public class StarStreamNodesObserver implements Control {
         }
       }
     }
+    log("Nodes with incomplete playbacks: "+nodesWithUncompletePlaybacks);
     log("Avg % of not played chunks: "+stats.getAverage());
     log("Min % of not played chunks: "+stats.getMin());
     log("Max % of not played chunks: "+stats.getMax());
     log("Not played chunks [chunk-id/nodes]: "+chunksTmpMap);
     chunksTmpMap.clear();
+    stats.reset();
+
+    // distances between not played chunks
+    IncrementalStats _stats = new IncrementalStats();
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      List<Integer> missed = node.getUnplayedChunks();
+      for(int j = missed.size()-1; j>0; j--) {
+        _stats.add(missed.get(j)-missed.get(j-1));
+      }
+      double avg = 0;
+      if(_stats.getN()>0) {
+        avg = _stats.getAverage();
+        if(avg!=0)
+          stats.add(avg);
+      }
+      _stats.reset();
+    }
+    log("Avg distance between not played chunks: "+stats.getAverage());
+    log("Min distance between not played chunks: "+stats.getMin());
+    log("Max distance between not played chunks: "+stats.getMax());
     log("");
+    stats.reset();
+
     // players detail
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
