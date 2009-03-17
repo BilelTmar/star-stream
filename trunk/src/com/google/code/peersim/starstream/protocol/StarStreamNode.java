@@ -9,11 +9,8 @@ import com.google.code.peersim.pastry.protocol.PastryNode;
 import com.google.code.peersim.pastry.protocol.PastryProtocol;
 import com.google.code.peersim.starstream.controls.ChunkUtils;
 import com.google.code.peersim.starstream.controls.ChunkUtils.Chunk;
-import com.google.code.peersim.starstream.protocol.StarStreamPlayer;
 import com.google.code.peersim.starstream.controls.StarStreamSource;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,7 +49,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
    */
   private static final String SEPARATOR = ".";
   private int MIN_CONTIGUOUS_CHUNKS_IN_BUFFER;
-  private long START_STREAMING_TIME;
+//  private long START_STREAMING_TIME;
   private int START_STREAMING_TIMEOUT;
   private int WAIT_BETWEEN_FORCES;
   private long lastForce;
@@ -68,6 +65,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
 //  private int lastPlayedChunkSeqId;
   private StarStreamPlayer player;
   private int totalChunks;
+  private Long streamingStartTime;
 
   /**
    * Default PeerSim-required constructor.
@@ -83,7 +81,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     // references to Pastry and *-Stream and tight the two instance enabling the
     // latter to receive notifications from the former
     MIN_CONTIGUOUS_CHUNKS_IN_BUFFER = Configuration.getInt(prefix + SEPARATOR + "minContiguousChunksInBuffer");
-    START_STREAMING_TIME = Configuration.getLong(prefix + SEPARATOR + "startStreaming");
+//    START_STREAMING_TIME = Configuration.getLong(prefix + SEPARATOR + "startStreaming");
     START_STREAMING_TIMEOUT = (int) Math.ceil(Configuration.getDouble(prefix + SEPARATOR + "startStreamingTimeout"));
     WAIT_BETWEEN_FORCES = Configuration.getInt(prefix + SEPARATOR + "waitBetweenForces");
     aggressive = Configuration.getBoolean(prefix + SEPARATOR + "aggressive");
@@ -203,8 +201,12 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     getStarStreamProtocol().resetUsedBandwidth();
   }
 
+  public void streamingStartsAt(long start) {
+    streamingStartTime = start;
+  }
+
   public void tick() {
-    if (isJoined()) {
+    if (isJoined() && streamingStartTime!=null) {
       checkForStarStreamTimeouts();
       checkForStartStreamingTimeout();
       proactiveSearch();
@@ -247,7 +249,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
   }
 
   private void checkForStartStreamingTimeout() {
-    if (!player.isStarted() && CommonState.getTime()>=(START_STREAMING_TIME+START_STREAMING_TIMEOUT)) {
+    if (!player.isStarted() && CommonState.getTime()>=(streamingStartTime+START_STREAMING_TIMEOUT)) {
       if (CommonState.getTime()>lastForce+WAIT_BETWEEN_FORCES) {
         // driiin!!! timeout expired
         // start proactive search (pull) for those chunks required to fill in
@@ -298,7 +300,7 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
   }
 
   private void proactiveSearch() {
-    if (player.isStarted() && (CommonState.getTime() > START_STREAMING_TIME + START_STREAMING_TIMEOUT)) {
+    if (player.isStarted() && (CommonState.getTime() > streamingStartTime+START_STREAMING_TIMEOUT)) {
       processDelayedChunkRequests();
       scheduleNextChunkRequest();
     }
