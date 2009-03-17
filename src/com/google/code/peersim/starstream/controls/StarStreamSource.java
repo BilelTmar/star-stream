@@ -5,6 +5,8 @@
 
 package com.google.code.peersim.starstream.controls;
 
+import com.google.code.peersim.pastry.controls.PastryOverlayBuilder;
+import com.google.code.peersim.pastry.controls.PastryOverlayBuilder.OverlayBuilderListenerIfc;
 import com.google.code.peersim.pastry.protocol.PastryId;
 import com.google.code.peersim.starstream.controls.ChunkUtils.*;
 import com.google.code.peersim.starstream.protocol.StarStreamNode;
@@ -47,7 +49,7 @@ import peersim.util.FileNameGenerator;
  * @version 0.1
  * @since 0.1
  */
-public class StarStreamSource implements Control {
+public class StarStreamSource implements Control, OverlayBuilderListenerIfc {
   /**
    * Single session-id applied to every chunk.
    */
@@ -88,11 +90,11 @@ public class StarStreamSource implements Control {
 
   public static final String TTL = "ttl";
   private int ttl;
-  /**
-   * Configurable simulated-time starting from which the source can begin producing and sending chunks.
-   */
-  public static final String START_TIME = "start";
-  private long start;
+//  /**
+//   * Configurable simulated-time starting from which the source can begin producing and sending chunks.
+//   */
+//  public static final String START_TIME = "start";
+  private static long start = Long.MAX_VALUE;
   /**
    * Configurable simulated-time units before an ack for a sent {@link ChunkMessage} must be received before
    * resending that chunk to another randomly choosen node.
@@ -116,7 +118,7 @@ public class StarStreamSource implements Control {
   /**
    * Whether this control class is active or not.
    */
-  private boolean enabled = true;
+  private boolean enabled = false;
   /**
    * Counter of the chunks that have been created so far.
    */
@@ -175,6 +177,7 @@ public class StarStreamSource implements Control {
   public static UUID getStarStreamSessionId() {
     return SESSION_ID;
   }
+
   private int chunkPlaybackLength;
   private long advance;
   private boolean adaptiveAdvance;
@@ -191,7 +194,7 @@ public class StarStreamSource implements Control {
     if(nodesPerChunk==0)
       nodesPerChunk = 1;
     chunks = Configuration.getInt(prefix+"."+CHUNKS);
-    start = Configuration.getLong(prefix+"."+START_TIME);
+//    start = Configuration.getLong(prefix+"."+START_TIME);
     ackTimeout = Configuration.getInt(prefix+"."+CHUNK_ACK_TIMEOUT);
     ttl = Configuration.getInt(prefix+"."+TTL);
     doLog = Configuration.getBoolean(prefix+"."+DO_LOG);
@@ -203,6 +206,8 @@ public class StarStreamSource implements Control {
     chunkPlaybackLength = Configuration.getInt(prefix+"."+"chunkPlaybackLength");
     advance = Configuration.getInt(prefix+"."+"advance");
     adaptiveAdvance = Configuration.getBoolean(prefix+"."+"adaptiveAdvance");
+    // register for overlay construction events
+    PastryOverlayBuilder.addOverlayBuilderListener(this);
   }
 
   /**
@@ -234,6 +239,22 @@ public class StarStreamSource implements Control {
       }
     }
     return stop;
+  }
+
+//  public static long getStartStreamingTime() {
+//    return start;
+//  }
+
+  @Override
+  public void overlayBuilt() {
+    if(!enabled) {
+      start = CommonState.getTime() * 2;
+      int dim = Network.size();
+      for(int i=0; i<dim; i++) {
+        ((StarStreamNode)Network.get(i)).streamingStartsAt(start);
+      }
+    }
+    enabled = true;
   }
 
   /**
