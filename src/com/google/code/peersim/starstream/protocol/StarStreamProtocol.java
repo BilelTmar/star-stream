@@ -153,6 +153,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private SortedSet<StarStreamMessage> delayedOutMessages = new TreeSet<StarStreamMessage>();
   private boolean aggressive;
   private long sentMessages = 0;
+  private int unsentChunkMsgsDueToTimeout;
 
   /**
    * Constructor. Sets up only those configuration parameters that can be set
@@ -201,6 +202,10 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Cloning failed. See nested exceptions, please.", e);
     }
+  }
+
+  public int getUnsentChunkMsgsDueToTimeout() {
+    return unsentChunkMsgsDueToTimeout;
   }
 
   /**
@@ -457,6 +462,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
           send(msg);
         } else {
           log("[NOT SENT] " + MAX_CHUNK_RETRIES + " " + maxChunkRetries + " reached");
+          unsentChunkMsgsDueToTimeout++;
         }
       }
     }
@@ -526,7 +532,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param chunkId The chunk ID
    */
   void searchForChunk(UUID starStreamSessionId, PastryId chunkId) {
-    Set<StarStreamNode> nodes = this.owner.getPastryProtocol().getNeighbors(1);
+//    Set<StarStreamNode> nodes = this.owner.getPastryProtocol().getNeighbors(1);
+    Set<StarStreamNode> nodes = this.owner.getPastryProtocol().getNeighbors(this.availableOutDeg(Type.CHUNK_REQ));
     if (!nodes.isEmpty()) {
       StarStreamNode dst = nodes.iterator().next();
       ChunkRequest req = new ChunkRequest(owner, dst, starStreamSessionId, chunkId);

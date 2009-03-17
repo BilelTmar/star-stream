@@ -34,6 +34,7 @@ public class StarStreamStore {
   private Map<UUID, Map<PastryId, Chunk<?>>> store;
   // TODO multi-session
   private SortedSet<Chunk<?>> orderedStore;
+  private Set<Integer> storeHistory;
   private Set<Integer> rejectedChunksDueToExpiration;
   private Set<Integer> rejectedChunksDueToCapacityLimit;
   private int maxSize;
@@ -74,6 +75,7 @@ public class StarStreamStore {
     orderedStore = new TreeSet<Chunk<?>>();
     rejectedChunksDueToExpiration = new HashSet<Integer>();
     rejectedChunksDueToCapacityLimit = new HashSet<Integer>();
+    storeHistory = new HashSet<Integer>();
     this.maxSize = maxSize;
   }
 
@@ -99,7 +101,8 @@ public class StarStreamStore {
           }
         } else {
           // the chunk has already expired
-          rejectedChunksDueToExpiration.add(chunk.getSequenceId());
+          if(!storeHistory.contains(chunk.getSequenceId()))
+            rejectedChunksDueToExpiration.add(chunk.getSequenceId());
         }
       } else {
         // the chunk is already in
@@ -115,6 +118,7 @@ public class StarStreamStore {
       added = true;
       chunks.put(chunk.getResourceId(), chunk);
       orderedStore.add(chunk);
+      storeHistory.add(chunk.getSequenceId());
     }
     return added;
   }
@@ -134,7 +138,6 @@ public class StarStreamStore {
       chunk = chunks.get(chunkId);
       // remove and return null if expired
       if (chunk != null && chunk.isExpired()) {
-        System.err.println("[get chunk] Chunk is expired, rejecting chunk "+chunk.getSequenceId());
         // remove from map...
         chunks.remove(chunkId);
         // remove from set...

@@ -159,6 +159,10 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     return getStarStreamProtocol().getStore();
   }
 
+  public int getUnsentChunkMsgsDueToTimeout() {
+    return getStarStreamProtocol().getUnsentChunkMsgsDueToTimeout();
+  }
+
   public long getWhenPlaybackStarted() {
     return player.getWhenPlaybackStarted();
   }
