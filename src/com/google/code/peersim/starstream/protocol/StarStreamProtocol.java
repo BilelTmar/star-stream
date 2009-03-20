@@ -855,7 +855,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    * @param msg The log message
    */
   private void log(String msg) {
-    stream.print(CommonState.getTime() + ") " + msg + "\n");
+    if(doLog)
+      stream.print(CommonState.getTime() + ") " + msg + "\n");
   }
 
   /**
