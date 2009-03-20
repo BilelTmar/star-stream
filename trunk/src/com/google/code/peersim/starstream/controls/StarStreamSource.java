@@ -327,7 +327,8 @@ public class StarStreamSource implements Control, OverlayBuilderListenerIfc {
    * @param msg The message
    */
   private void log(String msg) {
-    stream.println(CommonState.getTime()+") "+msg);
+    if(doLog)
+      stream.println(CommonState.getTime()+") "+msg);
   }
 
   /**
