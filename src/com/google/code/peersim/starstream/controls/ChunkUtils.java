@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import peersim.core.CommonState;
 
@@ -93,6 +94,28 @@ public class ChunkUtils {
       // NOP
     }
     return res;
+  }
+
+  /**
+   * Return the sequence number for the latest generate chunk for the required
+   * streaming session if there is one. In anyother case {@link Integer#MIN_VALUE}
+   * is returned.
+   *
+   * @param sessionID
+   * @return
+   */
+  static int getLastGeneratedChunkSeqId(UUID sessionID) {
+    Integer max = Integer.MIN_VALUE;
+    Map<Integer, PastryId> chunksForSession = chunkIds.get(sessionID);
+    if(chunksForSession!=null && !chunksForSession.isEmpty()) {
+      Set<Integer> seqIds = chunksForSession.keySet();
+      for(int seqId : seqIds) {
+        if(seqId > max) {
+          max = seqId;
+        }
+      }
+    }
+    return max;
   }
 
   /**

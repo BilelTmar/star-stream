@@ -7,9 +7,9 @@
 <!-- the Compile on Save feature is turned off for the project. -->
 <!-- You can turn off the Compile on Save (or Deploy on Save) setting -->
 <!-- in the project's Project Properties dialog box.-->
-<project name="Star-Stream" default="default" basedir=".">
-    <description>Builds, tests, and runs the project Star-Stream.</description>
-    <import file="nbproject/build-impl.xml"/>
+<project xmlns:j2seproject1="http://www.netbeans.org/ns/j2se-project/1" name="Star-Stream" default="default" basedir=".">
+  <description>Builds, tests, and runs the project Star-Stream.</description>
+  <import file="nbproject/build-impl.xml"/>
     <!--
 
     There exist several targets which are by default empty and which can be 
@@ -71,4 +71,348 @@
     nbproject/build-impl.xml file. 
 
     -->
+
+  <target name="batchRun" depends="init">
+    <antcall target="batchRun-1000"/>
+    <antcall target="batchRun-2000"/>
+    <antcall target="batchRun-3000"/>
+    <antcall target="batchRun-4000"/>
+    <antcall target="batchRun-5000"/>
+    <antcall target="batchRun-6000"/>
+    <antcall target="batchRun-7000"/>
+    <antcall target="batchRun-8000"/>
+    <antcall target="batchRun-9000"/>
+    <antcall target="batchRun-10000"/>
+  </target>
+
+  <target name="batchRun-1000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-1000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-1000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-1000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-1000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-1000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-1000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-1000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-1000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-1000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-1000-5.log"/>
+  </target>
+
+  <target name="batchRun-2000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-2000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-2000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-2000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-2000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-2000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-2000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-2000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-2000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-2000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-2000-5.log"/>
+  </target>
+
+  <target name="batchRun-3000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-3000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-3000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-3000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-3000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-3000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-3000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-3000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-3000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-3000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-3000-5.log"/>
+  </target>
+
+  <target name="batchRun-4000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-4000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-4000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-4000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-4000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-4000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-4000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-4000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-4000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-4000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-4000-5.log"/>
+  </target>
+
+  <target name="batchRun-5000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-5000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-5000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-5000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-5000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-5000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-5000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-5000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-5000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-5000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-5000-5.log"/>
+  </target>
+
+  <target name="batchRun-6000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-6000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-6000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-6000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-6000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-6000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-6000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-6000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-6000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-6000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-6000-5.log"/>
+  </target>
+
+  <target name="batchRun-7000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-7000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-7000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-7000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-7000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-7000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-7000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-7000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-7000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-7000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-7000-5.log"/>
+  </target>
+
+  <target name="batchRun-8000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-8000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-8000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-8000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-8000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-8000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-8000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-8000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-8000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-8000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-8000-5.log"/>
+  </target>
+
+  <target name="batchRun-9000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-9000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-9000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-9000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-9000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-9000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-9000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-9000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-9000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-9000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-9000-5.log"/>
+  </target>
+
+  <target name="batchRun-10000" depends="init">
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-10000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-10000-1.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-10000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-10000-2.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-10000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-10000-3.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-10000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-10000-4.log"/>
+    <j2seproject1:java>
+      <customize>
+        <arg line="config/starstream-10000.properties"/>
+      </customize>
+    </j2seproject1:java>
+    <move file="starstream-stats-00000000.log" tofile="stats-10000-5.log"/>
+  </target>
+
 </project>

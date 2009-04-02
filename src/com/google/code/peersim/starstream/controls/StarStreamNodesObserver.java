@@ -278,10 +278,12 @@ public class StarStreamNodesObserver implements Control {
     stats.reset();
 
     // players detail
+    /*
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
       log(node.getPlayer().toString());
     }
+    */
     System.err.print("done!\n\n");
   }
 
