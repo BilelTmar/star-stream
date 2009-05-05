@@ -66,19 +66,19 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   /**
    * Whether messages should be corruptable or not.
    */
-  public static final String CURRUPTED_MESSAGES = "curruptedMessages";
+  public static final String CORRUPTED_MESSAGES = "corruptedMessages";
   /**
    * Whether messages should be corruptable or not.
    */
-  private boolean curruptedMessages;
+  private boolean corruptedMessages;
   /**
    * Whether messages should be corruptable or not. Legal values are in [0..1].
    */
-  public static final String CURRUPTED_MESSAGES_PROB = "curruptedMessagesProbability";
+  public static final String CORRUPTED_MESSAGES_PROB = "corruptedMessagesProbability";
   /**
    * Whether messages should be corruptable or not.
    */
-  private float curruptedMessagesProbability;
+  private float corruptedMessagesProbability;
   /**
    * How many simulation-time units a node should try and send a chunk to another one.
    */
@@ -169,9 +169,9 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     if (doLog) {
       stream = new PrintStream(new FileOutputStream(new FileNameGenerator(Configuration.getString(prefix + SEPARATOR + LOG_FILE), ".log").nextCounterName()));
     }
-    curruptedMessages = Configuration.getBoolean(prefix + SEPARATOR + CURRUPTED_MESSAGES);
-    if (curruptedMessages) {
-      curruptedMessagesProbability = (float) Configuration.getDouble(prefix + SEPARATOR + CURRUPTED_MESSAGES_PROB);
+    corruptedMessages = Configuration.getBoolean(prefix + SEPARATOR + CORRUPTED_MESSAGES);
+    if (corruptedMessages) {
+      corruptedMessagesProbability = (float) Configuration.getDouble(prefix + SEPARATOR + CORRUPTED_MESSAGES_PROB);
     }
     downStream = Configuration.getInt(prefix + SEPARATOR + "downStream");
     upStream = Configuration.getInt(prefix + SEPARATOR + "upStream");
@@ -640,8 +640,8 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private boolean checkMessageIntegrity(ChunkMessage chunkMsg) {
     boolean res;
-    if (curruptedMessages) {
-      res = CommonState.r.nextFloat() < curruptedMessagesProbability;
+    if (corruptedMessages) {
+      res = CommonState.r.nextFloat() < corruptedMessagesProbability;
     } else {
       res = true;
     }
