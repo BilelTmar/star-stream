@@ -209,7 +209,10 @@ public class StarStreamNodesObserver implements Control {
     // chunk received by means of Pastry
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
-      stats.add(node.getChunksReceivedFromPastry());
+      int pChunks = node.getChunksReceivedFromPastry();
+      int sChunks = node.getChunksReceivedFromStarStream();
+      double res = pChunks * 100 / (pChunks+sChunks);
+      stats.add(res);
     }
     log("Avg # of chunks received by Pastry: "+stats.getAverage());
     log("Min # of chunks received by Pastry: "+stats.getMin());
@@ -221,7 +224,10 @@ public class StarStreamNodesObserver implements Control {
     // chunk received by means of StarStream
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
-      stats.add(node.getChunksReceivedFromStarStream());
+      int pChunks = node.getChunksReceivedFromPastry();
+      int sChunks = node.getChunksReceivedFromStarStream();
+      double res = sChunks * 100 / (pChunks+sChunks);
+      stats.add(res);
     }
     log("Avg # of chunks received by StarStream: "+stats.getAverage());
     log("Min # of chunks received by StarStream: "+stats.getMin());
