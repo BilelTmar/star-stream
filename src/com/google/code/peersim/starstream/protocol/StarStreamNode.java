@@ -105,6 +105,22 @@ public class StarStreamNode extends PastryNode implements StarStreamProtocolList
     return issuedChunkRequests.size();
   }
 
+  /**
+   * Returns the number of chunnks received by means of the Pastry API.
+   * @return The number of chunnks received by means of the Pastry API.
+   */
+  public int getChunksReceivedFromPastry() {
+    return getStarStreamProtocol().getChunksReceivedFromPastry();
+  }
+
+  /**
+   * Returns the number of chunnks received by means of the StarStream API.
+   * @return The number of chunnks received by means of the StarStream API.
+   */
+  public int getChunksReceivedFromStarStream() {
+    return getStarStreamProtocol().getChunksReceivedFromStarStream();
+  }
+
   public List<Integer> getUnplayedChunks() {
     return  player.getMissedChunks();
   }
