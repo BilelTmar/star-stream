@@ -154,6 +154,14 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private boolean aggressive;
   private long sentMessages = 0;
   private int unsentChunkMsgsDueToTimeout;
+  /**
+   * Counter of chunks received by means of the Pastry API.
+   */
+  private int chunksReceivedFromPastry;
+  /**
+   * Counter of chunks received by means of the StarStream API.
+   */
+  private int chunksReceivedFromStarStream;
 
   /**
    * Constructor. Sets up only those configuration parameters that can be set
@@ -204,6 +212,26 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
     }
   }
 
+  /**
+   * Returns the number of chunnks received by means of the Pastry API.
+   * @return The number of chunnks received by means of the Pastry API.
+   */
+  public int getChunksReceivedFromPastry() {
+    return chunksReceivedFromPastry;
+  }
+
+  /**
+   * Returns the number of chunnks received by means of the StarStream API.
+   * @return The number of chunnks received by means of the StarStream API.
+   */
+  public int getChunksReceivedFromStarStream() {
+    return chunksReceivedFromStarStream;
+  }
+
+  /**
+   * Returns the number of unsent chunnks due to message timeout.
+   * @return The number of unsent chunnks due to message timeout.
+   */
   public int getUnsentChunkMsgsDueToTimeout() {
     return unsentChunkMsgsDueToTimeout;
   }
@@ -728,6 +756,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
    */
   private void handleChunkFromPastry(Chunk<?> chunk) {
     if (storeIfNotStored(chunk)) {
+      chunksReceivedFromPastry++;
       advertiseChunk(null, true, chunk);
     }
   }
@@ -1046,6 +1075,7 @@ public class StarStreamProtocol implements EDProtocol, PastryProtocolListenerIfc
   private boolean storeIfNotStored(Chunk<?> chunk) {
     boolean stored = store.addChunk(chunk);
     if (stored) {
+      chunksReceivedFromStarStream++;
       // the chunk has been added to the local store
       notifyChunkStoredToListeners(chunk);
     } else {

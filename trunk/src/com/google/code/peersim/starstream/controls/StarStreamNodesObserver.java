@@ -206,6 +206,30 @@ public class StarStreamNodesObserver implements Control {
     log("Max # of unsent chunk-reqs for max-retries: "+stats.getMax());
     stats.reset();
 
+    // chunk received by means of Pastry
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      stats.add(node.getChunksReceivedFromPastry());
+    }
+    log("Avg # of chunks received by Pastry: "+stats.getAverage());
+    log("Min # of chunks received by Pastry: "+stats.getMin());
+    log("Max # of chunks received by Pastry: "+stats.getMax());
+    log("StD of chunks received by Pastry: "+stats.getStD());
+    log("Var of chunks received by Pastry: "+stats.getVar());
+    stats.reset();
+
+    // chunk received by means of StarStream
+    for (int i = 0; i < dim; i++) {
+      StarStreamNode node = (StarStreamNode) Network.get(i);
+      stats.add(node.getChunksReceivedFromStarStream());
+    }
+    log("Avg # of chunks received by StarStream: "+stats.getAverage());
+    log("Min # of chunks received by StarStream: "+stats.getMin());
+    log("Max # of chunks received by StarStream: "+stats.getMax());
+    log("StD of chunks received by StarStream: "+stats.getStD());
+    log("Var of chunks received by StarStream: "+stats.getVar());
+    stats.reset();
+
     // stats of perceived chunk delivery times
     for (int i = 0; i < dim; i++) {
       StarStreamNode node = (StarStreamNode) Network.get(i);
