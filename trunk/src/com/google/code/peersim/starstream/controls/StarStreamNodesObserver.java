@@ -214,9 +214,9 @@ public class StarStreamNodesObserver implements Control {
       double res = pChunks * 100 / (pChunks+sChunks);
       stats.add(res);
     }
-    log("Avg # of chunks received by Pastry: "+stats.getAverage());
-    log("Min # of chunks received by Pastry: "+stats.getMin());
-    log("Max # of chunks received by Pastry: "+stats.getMax());
+    log("Avg % of chunks received by Pastry: "+stats.getAverage());
+    log("Min % of chunks received by Pastry: "+stats.getMin());
+    log("Max % of chunks received by Pastry: "+stats.getMax());
     log("StD of chunks received by Pastry: "+stats.getStD());
     log("Var of chunks received by Pastry: "+stats.getVar());
     stats.reset();
@@ -229,9 +229,9 @@ public class StarStreamNodesObserver implements Control {
       double res = sChunks * 100 / (pChunks+sChunks);
       stats.add(res);
     }
-    log("Avg # of chunks received by StarStream: "+stats.getAverage());
-    log("Min # of chunks received by StarStream: "+stats.getMin());
-    log("Max # of chunks received by StarStream: "+stats.getMax());
+    log("Avg % of chunks received by StarStream: "+stats.getAverage());
+    log("Min % of chunks received by StarStream: "+stats.getMin());
+    log("Max % of chunks received by StarStream: "+stats.getMax());
     log("StD of chunks received by StarStream: "+stats.getStD());
     log("Var of chunks received by StarStream: "+stats.getVar());
     stats.reset();
