@@ -1,0 +1,1 @@
+Star-Stream is a PeerSim-based implementation of a protocol for streaming audio-video content over a P2P network.
